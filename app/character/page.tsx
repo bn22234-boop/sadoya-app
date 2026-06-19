@@ -27,7 +27,7 @@ export default function CharacterPage() {
       <section className="grid grid-cols-3 gap-3 text-center">
         <div className="rounded-3xl bg-orange-50 p-4">
           <p className="text-2xl">❤️</p>
-          <p className="mt-1 text-xs text-gray-500">なつき度</p>
+          <p className="mt-1 text-xs text-gray-500">仲良し度</p>
           <p className="font-bold">80%</p>
         </div>
 
