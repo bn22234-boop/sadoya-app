@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Wine = {
   id: string;
@@ -25,14 +25,14 @@ const categories = [
   { value: "rose", label: "ロゼ" },
 ];
 
-const prices = [
+const priceRanges = [
   { value: "all", label: "すべて" },
   { value: "under_2000", label: "〜2,000円" },
   { value: "2000_4000", label: "2,000〜4,000円" },
   { value: "over_4000", label: "4,000円〜" },
 ];
 
-export default function WinesPage() {
+export default function WinePage() {
   const [wines, setWines] = useState<Wine[]>([]);
   const [category, setCategory] = useState("all");
   const [priceRange, setPriceRange] = useState("all");
@@ -63,26 +63,26 @@ export default function WinesPage() {
     console.log("wines data =", data);
     console.log("wines error =", error);
 
-    if (data) setWines(data);
+    if (data) {
+      setWines(data);
+    }
+
     setLoading(false);
   }
 
   return (
-    <div className="space-y-5 p-5">
+    <div className="space-y-5 p-5 pb-24">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">SADOYA Wine App</p>
-          <h1 className="text-2xl font-bold text-red-900">
-            ワインリスト
-          </h1>
-        </div>
+        <h1 className="text-3xl font-bold text-red-900">
+          ワインリスト
+        </h1>
 
-        <Link href="/" className="text-sm font-bold text-red-700">
-          ホーム
+        <Link href="/" className="font-bold text-red-700">
+          ホームへ
         </Link>
       </div>
 
-      <section className="rounded-3xl bg-red-900 p-5 text-white">
+      <section className="rounded-3xl bg-red-900 p-5 text-white shadow">
         <h2 className="text-xl font-bold">
           好みに合うワインを探そう
         </h2>
@@ -91,9 +91,12 @@ export default function WinesPage() {
         </p>
       </section>
 
-      <section className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
+      <section className="space-y-4 rounded-3xl border border-red-100 bg-white p-4 shadow-sm">
         <div>
-          <p className="mb-2 text-sm font-bold text-red-900">種類</p>
+          <p className="mb-2 text-sm font-bold text-red-900">
+            種類
+          </p>
+
           <div className="flex gap-2 overflow-x-auto">
             {categories.map((item) => (
               <button
@@ -112,9 +115,12 @@ export default function WinesPage() {
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-bold text-red-900">価格帯</p>
+          <p className="mb-2 text-sm font-bold text-red-900">
+            価格帯
+          </p>
+
           <div className="flex gap-2 overflow-x-auto">
-            {prices.map((item) => (
+            {priceRanges.map((item) => (
               <button
                 key={item.value}
                 onClick={() => setPriceRange(item.value)}
@@ -132,7 +138,9 @@ export default function WinesPage() {
       </section>
 
       {loading && (
-        <p className="text-sm text-gray-500">読み込み中...</p>
+        <p className="rounded-3xl bg-white p-5 text-sm text-gray-500">
+          読み込み中...
+        </p>
       )}
 
       {!loading && wines.length === 0 && (
@@ -148,7 +156,7 @@ export default function WinesPage() {
             className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
           >
             <div className="flex gap-4">
-              <div className="flex h-24 w-20 items-center justify-center rounded-2xl bg-red-100 text-4xl">
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-red-100 text-5xl">
                 {wine.image_emoji}
               </div>
 
@@ -157,16 +165,17 @@ export default function WinesPage() {
                   <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
                     {wine.category_label}
                   </span>
+
                   <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-bold text-yellow-700">
                     {wine.price_label}
                   </span>
                 </div>
 
-                <h2 className="mt-2 font-bold">
+                <h2 className="mt-2 text-lg font-bold">
                   {wine.name}
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">
                   {wine.description}
                 </p>
 
@@ -174,7 +183,7 @@ export default function WinesPage() {
                   初心者向け {"★".repeat(wine.beginner_score)}
                 </p>
 
-                <p className="mt-1 text-sm font-bold">
+                <p className="mt-1 text-sm font-bold text-gray-800">
                   ¥{wine.price.toLocaleString()}
                 </p>
               </div>
