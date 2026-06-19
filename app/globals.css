@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+html,
+body {
+  background: #fffaf6 !important;
+  color: #111827 !important;
+}
+
+* {
+  color-scheme: light;
+}
