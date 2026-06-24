@@ -21,3 +21,17 @@ export const missions = [
     points: 50,
   },
 ];
+export const records = [
+  {
+    wineName: "サドヤ オルロージュ",
+    date: "2026/06/24",
+    rating: 5,
+    memo: "フルーティーで飲みやすかった",
+  },
+  {
+    wineName: "シャトーブリヤン 白",
+    date: "2026/06/23",
+    rating: 4,
+    memo: "すっきりしていて料理に合いそう",
+  },
+];
