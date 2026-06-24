@@ -23,7 +23,7 @@ export default function RecordsPage() {
       <section className="space-y-3">
         {records.map((record) => (
           <div
-            key={record.wine}
+            key={record.wineName}
             className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
           >
             <div className="flex gap-3">
@@ -33,7 +33,7 @@ export default function RecordsPage() {
 
               <div className="flex-1">
                 <p className="text-xs text-gray-400">{record.date}</p>
-                <h2 className="mt-1 font-bold">{record.wine}</h2>
+                <h2 className="mt-1 font-bold">{record.wineName}</h2>
                 <p className="mt-1 text-sm text-yellow-500">
                   {"★".repeat(record.rating)}
                   {"☆".repeat(5 - record.rating)}
