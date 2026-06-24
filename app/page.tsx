@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
 type Profile = {
   id: string;
@@ -44,10 +45,16 @@ export default function HomePage() {
     setProfile(null);
   }
 
-  const level = profile?.level ?? 3;
-  const points = profile?.points ?? 620;
-  const nextPoint = Math.max(1000 - points, 0);
-  const progress = Math.min((points / 1000) * 100, 100);
+const points = profile?.points ?? 0;
+
+// 100ptごとにレベルアップ
+const level = Math.floor(points / 100) + 1;
+
+// 次レベルまで
+const nextPoint = 100 - (points % 100);
+
+// プログレスバー
+const progress = points % 100;
 
   return (
     <div className="space-y-5 p-5">
@@ -92,9 +99,15 @@ export default function HomePage() {
       </section>
 
       <section className="rounded-3xl bg-red-50 p-5 text-center">
-        <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-white text-7xl shadow-inner">
-          🍇
-        </div>
+        <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-inner">
+  <Image
+    src="/images/sadoyan.png"
+    alt="サドヤん"
+    width={130}
+    height={130}
+    className="object-contain"
+  />
+</div>
 
         <h2 className="mt-4 text-xl font-bold text-gray-900">
           サドヤん Lv.{level}
@@ -102,15 +115,15 @@ export default function HomePage() {
 
         <p className="text-sm text-gray-500">
           {profile
-            ? `現在 ${points}pt / 次の進化まで ${nextPoint}pt`
+            ? `現在 ${points}pt / 次のLvまで ${nextPoint}pt`
             : "ログインするとサドヤんの成長が保存されます"}
         </p>
 
         <div className="mt-3 h-3 rounded-full bg-red-100">
           <div
-            className="h-3 rounded-full bg-red-700"
-            style={{ width: `${progress}%` }}
-          />
+  className="h-3 rounded-full bg-red-700"
+  style={{ width: `${progress}%` }}
+/>
         </div>
       </section>
 
