@@ -12,36 +12,36 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function login() {
-    if (!loginId || !password) {
-      alert("IDとパスワードを入力してください");
-      return;
-    }
-
-    setLoading(true);
-
-    const { data, error } = await supabase.rpc("login_with_password", {
-      p_login_id: loginId.trim(),
-      p_password: password,
-    });
-
-    if (error) {
-      alert(error.message);
-      setLoading(false);
-      return;
-    }
-
-    if (!data) {
-      alert("IDまたはパスワードが違います");
-      setLoading(false);
-      return;
-    }
-
-    localStorage.setItem("sadoya_user_id", data.id);
-    localStorage.setItem("sadoya_login_id", data.login_id);
-
-    router.push("/");
+ async function login() {
+  if (!loginId || !password) {
+    alert("IDとパスワードを入力してください");
+    return;
   }
+
+  setLoading(true);
+
+  const { data, error } = await supabase.rpc("login_with_password", {
+    p_login_id: loginId.trim(),
+    p_password: password,
+  });
+
+  if (error) {
+    alert(error.message);
+    setLoading(false);
+    return;
+  }
+
+  if (!data?.id) {
+    alert("IDまたはパスワードが違います");
+    setLoading(false);
+    return;
+  }
+
+  localStorage.setItem("sadoya_user_id", data.id);
+  localStorage.setItem("sadoya_login_id", data.login_id);
+
+  router.push("/");
+}
 
   return (
     <div className="flex min-h-screen flex-col justify-center space-y-6 bg-[#fffaf6] p-5 text-gray-900">
