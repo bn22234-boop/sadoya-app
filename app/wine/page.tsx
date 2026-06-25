@@ -186,6 +186,12 @@ export default function WinePage() {
                 <p className="mt-1 text-sm font-bold text-gray-800">
                   ¥{wine.price.toLocaleString()}
                 </p>
+                <Link
+  href={`/records?wine=${encodeURIComponent(wine.name)}`}
+  className="mt-3 block rounded-2xl bg-red-800 py-2 text-center text-sm font-bold text-white"
+>
+  このワインを記録する
+</Link>
               </div>
             </div>
           </section>

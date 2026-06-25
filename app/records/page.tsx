@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type WineRecord = {
@@ -11,9 +12,21 @@ type WineRecord = {
   created_at: string;
 };
 
+type Wine = {
+  id: string;
+  name: string;
+};
+
 export default function RecordsPage() {
+  const searchParams = useSearchParams();
+
   const [records, setRecords] = useState<WineRecord[]>([]);
+  const [wines, setWines] = useState<Wine[]>([]);
+
   const [wineName, setWineName] = useState("");
+  const [selectedWine, setSelectedWine] = useState("");
+  const [customWineName, setCustomWineName] = useState("");
+
   const [rating, setRating] = useState(5);
   const [memo, setMemo] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -21,7 +34,18 @@ export default function RecordsPage() {
 
   useEffect(() => {
     loadRecords();
+    loadWines();
   }, []);
+
+  useEffect(() => {
+    const wineFromUrl = searchParams.get("wine");
+
+    if (wineFromUrl) {
+      setWineName(wineFromUrl);
+      setSelectedWine(wineFromUrl);
+      setShowForm(true);
+    }
+  }, [searchParams]);
 
   async function loadRecords() {
     const userId = localStorage.getItem("sadoya_user_id");
@@ -42,6 +66,33 @@ export default function RecordsPage() {
     setRecords(data ?? []);
   }
 
+  async function loadWines() {
+    const { data, error } = await supabase
+      .from("wines")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+
+    if (error) {
+      console.log(error.message);
+      return;
+    }
+
+    setWines(data ?? []);
+  }
+
+  function handleWineSelect(value: string) {
+    setSelectedWine(value);
+
+    if (value === "other") {
+      setWineName(customWineName);
+      return;
+    }
+
+    setCustomWineName("");
+    setWineName(value);
+  }
+
   async function saveRecord() {
     const userId = localStorage.getItem("sadoya_user_id");
 
@@ -50,7 +101,7 @@ export default function RecordsPage() {
       return;
     }
 
-    if (!wineName) {
+    if (!wineName.trim()) {
       alert("ワイン名を入力してください");
       return;
     }
@@ -59,7 +110,7 @@ export default function RecordsPage() {
 
     const { data, error } = await supabase.rpc("add_wine_record", {
       p_profile_id: userId,
-      p_wine_name: wineName,
+      p_wine_name: wineName.trim(),
       p_rating: rating,
       p_memo: memo,
     });
@@ -73,10 +124,14 @@ export default function RecordsPage() {
 
     if (data === true) {
       alert("記録しました！ +50pt");
+
       setWineName("");
+      setSelectedWine("");
+      setCustomWineName("");
       setRating(5);
       setMemo("");
       setShowForm(false);
+
       loadRecords();
     }
   }
@@ -102,20 +157,40 @@ export default function RecordsPage() {
         <section className="space-y-4 rounded-3xl border border-red-100 bg-white p-5 text-gray-900 shadow-sm">
           <div>
             <label className="text-sm font-bold text-red-900">
-              ワイン名
+              ワインを選択
             </label>
-            <input
-              value={wineName}
-              onChange={(e) => setWineName(e.target.value)}
-              placeholder="例：サドヤ オルロージュ"
+
+            <select
+              value={selectedWine}
+              onChange={(e) => handleWineSelect(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-red-100 bg-white px-4 py-3 outline-none"
-            />
+            >
+              <option value="">ワインを選んでください</option>
+
+              {wines.map((wine) => (
+                <option key={wine.id} value={wine.name}>
+                  {wine.name}
+                </option>
+              ))}
+
+              <option value="other">その他（手入力）</option>
+            </select>
+
+            {selectedWine === "other" && (
+              <input
+                value={customWineName}
+                onChange={(e) => {
+                  setCustomWineName(e.target.value);
+                  setWineName(e.target.value);
+                }}
+                placeholder="ワイン名を入力"
+                className="mt-3 w-full rounded-2xl border border-red-100 bg-white px-4 py-3 outline-none"
+              />
+            )}
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-bold text-red-900">
-              評価
-            </p>
+            <p className="mb-2 text-sm font-bold text-red-900">評価</p>
 
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -123,7 +198,7 @@ export default function RecordsPage() {
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className="text-3xl"
+                  className="text-3xl text-yellow-500"
                 >
                   {star <= rating ? "★" : "☆"}
                 </button>
@@ -132,9 +207,7 @@ export default function RecordsPage() {
           </div>
 
           <div>
-            <label className="text-sm font-bold text-red-900">
-              感想
-            </label>
+            <label className="text-sm font-bold text-red-900">感想</label>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
@@ -182,9 +255,7 @@ export default function RecordsPage() {
                   {new Date(record.created_at).toLocaleDateString("ja-JP")}
                 </p>
 
-                <h2 className="mt-1 font-bold">
-                  {record.wine_name}
-                </h2>
+                <h2 className="mt-1 font-bold">{record.wine_name}</h2>
 
                 <p className="mt-1 text-sm text-yellow-500">
                   {"★".repeat(record.rating)}
