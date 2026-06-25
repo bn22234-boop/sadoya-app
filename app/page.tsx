@@ -11,6 +11,7 @@ type Profile = {
   name: string;
   points: number;
   level: number;
+  role: string;
 };
 
 export default function HomePage() {
@@ -27,7 +28,7 @@ export default function HomePage() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, login_id, name, points, level")
+      .select("id, login_id, name, points, level, role")
       .eq("id", userId)
       .single();
 
@@ -172,6 +173,17 @@ const progress = points % 100;
     獲得したポイントを確認する
   </p>
 </Link>
+{profile?.role === "admin" && (
+  <Link
+    href="/admin"
+    className="block rounded-3xl bg-red-900 p-4 text-white shadow-sm"
+  >
+    <h2 className="font-bold">管理者画面</h2>
+    <p className="mt-1 text-sm text-white/80">
+      ワイン・クイズ・ユーザー情報を管理する
+    </p>
+  </Link>
+)}
     </div>
   );
 }
