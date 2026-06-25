@@ -74,6 +74,9 @@ const progress = points % 100;
                 こんにちは、{profile.name}さん
               </p>
             )}
+            <p className="text-xs text-gray-500">
+  role: {profile?.role ?? "なし"} / id: {profile?.login_id ?? "未ログイン"}
+</p>
           </div>
 
           {profile ? (

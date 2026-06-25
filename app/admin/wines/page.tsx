@@ -15,14 +15,16 @@ type Wine = {
   volume_ml: number | null;
   beginner_score: number;
   description: string | null;
+  image_url: string | null;
+  product_url: string | null;
   is_active: boolean;
   display_order: number;
 };
 
 export default function AdminWinesPage() {
   const [wines, setWines] = useState<Wine[]>([]);
+  const [editingWine, setEditingWine] = useState<Wine | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("red");
@@ -30,6 +32,9 @@ export default function AdminWinesPage() {
   const [volumeMl, setVolumeMl] = useState("");
   const [beginnerScore, setBeginnerScore] = useState(5);
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [productUrl, setProductUrl] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     checkAdminAndLoad();
@@ -83,26 +88,48 @@ export default function AdminWinesPage() {
 
   function getPriceRange(value: number) {
     if (value < 2000) {
-      return {
-        price_range: "under_2000",
-        price_label: "〜2,000円",
-      };
+      return { price_range: "under_2000", price_label: "〜2,000円" };
     }
 
     if (value <= 4000) {
-      return {
-        price_range: "2000_4000",
-        price_label: "2,000〜4,000円",
-      };
+      return { price_range: "2000_4000", price_label: "2,000〜4,000円" };
     }
 
-    return {
-      price_range: "over_4000",
-      price_label: "4,000円〜",
-    };
+    return { price_range: "over_4000", price_label: "4,000円〜" };
   }
 
-  async function addWine() {
+  function resetForm() {
+    setEditingWine(null);
+    setName("");
+    setCategory("red");
+    setPrice("");
+    setVolumeMl("");
+    setBeginnerScore(5);
+    setDescription("");
+    setImageUrl("");
+    setProductUrl("");
+    setShowForm(false);
+  }
+
+  function startCreate() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function startEdit(wine: Wine) {
+    setEditingWine(wine);
+    setName(wine.name);
+    setCategory(wine.category);
+    setPrice(String(wine.price));
+    setVolumeMl(wine.volume_ml ? String(wine.volume_ml) : "");
+    setBeginnerScore(wine.beginner_score);
+    setDescription(wine.description ?? "");
+    setImageUrl(wine.image_url ?? "");
+    setProductUrl(wine.product_url ?? "");
+    setShowForm(true);
+  }
+
+  async function saveWine() {
     if (!name || !price) {
       alert("ワイン名と価格を入力してください");
       return;
@@ -113,7 +140,7 @@ export default function AdminWinesPage() {
     const priceNumber = Number(price);
     const range = getPriceRange(priceNumber);
 
-    const { error } = await supabase.from("wines").insert({
+    const payload = {
       name,
       category,
       category_label: getCategoryLabel(category),
@@ -121,17 +148,23 @@ export default function AdminWinesPage() {
       price_range: range.price_range,
       price_label: range.price_label,
       volume_ml: volumeMl ? Number(volumeMl) : null,
-      alcohol_percent: null,
       description,
       beginner_score: beginnerScore,
-      taste: null,
-      aroma: null,
-      food_pairing: null,
-      image_url: null,
-      product_url: null,
-      display_order: wines.length + 1,
-      is_active: true,
-    });
+      image_url: imageUrl || null,
+      product_url: productUrl || null,
+    };
+
+    const { error } = editingWine
+      ? await supabase.from("wines").update(payload).eq("id", editingWine.id)
+      : await supabase.from("wines").insert({
+          ...payload,
+          alcohol_percent: null,
+          taste: null,
+          aroma: null,
+          food_pairing: null,
+          display_order: wines.length + 1,
+          is_active: true,
+        });
 
     setSaving(false);
 
@@ -140,14 +173,7 @@ export default function AdminWinesPage() {
       return;
     }
 
-    setName("");
-    setCategory("red");
-    setPrice("");
-    setVolumeMl("");
-    setBeginnerScore(5);
-    setDescription("");
-    setShowForm(false);
-
+    resetForm();
     loadWines();
   }
 
@@ -171,7 +197,7 @@ export default function AdminWinesPage() {
         <p className="text-sm opacity-80">Admin / Wines</p>
         <h1 className="mt-1 text-2xl font-bold">ワイン管理</h1>
         <p className="mt-2 text-sm opacity-90">
-          ワインの追加・公開状態の切り替えを行います。
+          ワインの追加・編集・公開状態の切り替えを行います。
         </p>
       </section>
 
@@ -183,14 +209,18 @@ export default function AdminWinesPage() {
       </Link>
 
       <button
-        onClick={() => setShowForm(!showForm)}
+        onClick={showForm ? resetForm : startCreate}
         className="w-full rounded-3xl bg-red-700 py-4 font-bold text-white shadow"
       >
-        {showForm ? "追加フォームを閉じる" : "＋ 新しいワインを追加"}
+        {showForm ? "フォームを閉じる" : "＋ 新しいワインを追加"}
       </button>
 
       {showForm && (
         <section className="space-y-4 rounded-3xl border border-red-100 bg-white p-5 text-gray-900 shadow-sm">
+          <h2 className="font-bold text-red-900">
+            {editingWine ? "ワインを編集" : "新しいワインを追加"}
+          </h2>
+
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -225,11 +255,24 @@ export default function AdminWinesPage() {
             className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 outline-none"
           />
 
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="画像URL"
+            className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 outline-none"
+          />
+
+          <input
+            value={productUrl}
+            onChange={(e) => setProductUrl(e.target.value)}
+            placeholder="公式商品URL"
+            className="w-full rounded-2xl border border-red-100 bg-white px-4 py-3 outline-none"
+          />
+
           <div>
             <p className="mb-2 text-sm font-bold text-red-900">
               初心者向け度
             </p>
-
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((score) => (
                 <button
@@ -252,11 +295,11 @@ export default function AdminWinesPage() {
           />
 
           <button
-            onClick={addWine}
+            onClick={saveWine}
             disabled={saving}
             className="w-full rounded-2xl bg-red-800 py-4 font-bold text-white disabled:opacity-50"
           >
-            {saving ? "保存中..." : "ワインを保存"}
+            {saving ? "保存中..." : editingWine ? "変更を保存" : "ワインを保存"}
           </button>
         </section>
       )}
@@ -275,7 +318,7 @@ export default function AdminWinesPage() {
             className="rounded-3xl border border-red-100 bg-white p-4 text-gray-900 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs font-bold text-red-700">
                   {wine.category_label}
                 </p>
@@ -297,16 +340,25 @@ export default function AdminWinesPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => toggleActive(wine)}
-                className={`rounded-2xl px-4 py-2 text-sm font-bold ${
-                  wine.is_active
-                    ? "bg-gray-100 text-gray-600"
-                    : "bg-red-800 text-white"
-                }`}
-              >
-                {wine.is_active ? "非公開にする" : "公開する"}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => startEdit(wine)}
+                  className="block rounded-2xl bg-red-800 px-4 py-2 text-sm font-bold text-white"
+                >
+                  編集
+                </button>
+
+                <button
+                  onClick={() => toggleActive(wine)}
+                  className={`block rounded-2xl px-4 py-2 text-sm font-bold ${
+                    wine.is_active
+                      ? "bg-gray-100 text-gray-600"
+                      : "bg-red-100 text-red-900"
+                  }`}
+                >
+                  {wine.is_active ? "非公開" : "公開"}
+                </button>
+              </div>
             </div>
           </div>
         ))}
