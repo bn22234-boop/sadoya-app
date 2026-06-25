@@ -128,9 +128,14 @@ export default function MissionsPage() {
             description={mission.description}
             points={mission.points}
             completed={completedKeys.includes(mission.key)}
-            onComplete={() =>
-              completeMission(mission.key, mission.points)
-            }
+            onComplete={() => {
+  if (mission.key === "quiz") {
+    window.location.href = "/quiz";
+    return;
+  }
+
+  completeMission(mission.key, mission.points);
+}}
           />
         ))}
       </section>
