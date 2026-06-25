@@ -163,6 +163,15 @@ const progress = points % 100;
           <p>□ ワインを記録する +50pt</p>
         </div>
       </section>
+      <Link
+  href="/points"
+  className="block rounded-3xl border border-red-100 bg-white p-4 text-gray-900 shadow-sm"
+>
+  <h2 className="font-bold">ポイント履歴</h2>
+  <p className="mt-1 text-sm text-gray-500">
+    獲得したポイントを確認する
+  </p>
+</Link>
     </div>
   );
 }

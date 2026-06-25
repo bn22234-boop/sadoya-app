@@ -6,8 +6,8 @@ import MissionCard from "@/components/MissionCard";
 import { missions } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase";
 
-type MissionLog = {
-  mission_key: string;
+type PointLog = {
+  action_key: string;
   points: number;
 };
 
@@ -15,7 +15,6 @@ export default function MissionsPage() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [completedKeys, setCompletedKeys] = useState<string[]>([]);
   const [todayPoints, setTodayPoints] = useState(0);
-  const [loadingKey, setLoadingKey] = useState("");
 
   useEffect(() => {
     loadMissionStatus();
@@ -24,36 +23,31 @@ export default function MissionsPage() {
   async function loadMissionStatus() {
     const userId = localStorage.getItem("sadoya_user_id");
 
-    if (!userId) {
-      return;
-    }
+    if (!userId) return;
 
     setProfileId(userId);
 
     const today = getMissionDate();
 
     const { data, error } = await supabase
-      .from("mission_logs")
-      .select("mission_key, points")
+      .from("point_logs")
+      .select("action_key, points")
       .eq("profile_id", userId)
-      .eq("mission_date", today);
+      .eq("action_date", today);
 
     if (error) {
       console.log(error.message);
       return;
     }
 
-    const logs = (data ?? []) as MissionLog[];
+    const logs = (data ?? []) as PointLog[];
 
-    setCompletedKeys(logs.map((log) => log.mission_key));
-    setTodayPoints(
-      logs.reduce((sum, log) => sum + log.points, 0)
-    );
+    setCompletedKeys(logs.map((log) => log.action_key));
+    setTodayPoints(logs.reduce((sum, log) => sum + log.points, 0));
   }
 
   function getMissionDate() {
     const now = new Date();
-
     now.setHours(now.getHours() - 4);
 
     const y = now.getFullYear();
@@ -63,27 +57,29 @@ export default function MissionsPage() {
     return `${y}-${m}-${d}`;
   }
 
-  async function completeMission(
-    missionKey: string,
-    points: number
-  ) {
+  async function completeMission(missionKey: string, points: number) {
     if (!profileId) {
       alert("ログインしてください");
       return;
     }
 
-    setLoadingKey(missionKey);
+    if (missionKey === "quiz") {
+      window.location.href = "/quiz";
+      return;
+    }
 
-    const { data, error } = await supabase.rpc(
-      "complete_mission",
-      {
-        p_profile_id: profileId,
-        p_mission_key: missionKey,
-        p_points: points,
-      }
-    );
+    if (missionKey === "record") {
+      window.location.href = "/records";
+      return;
+    }
 
-    setLoadingKey("");
+    const { data, error } = await supabase.rpc("add_points_once_per_day", {
+      p_profile_id: profileId,
+      p_action_type: "mission",
+      p_action_key: missionKey,
+      p_points: points,
+      p_memo: "ミッション達成",
+    });
 
     if (error) {
       alert(error.message);
@@ -95,8 +91,8 @@ export default function MissionsPage() {
       return;
     }
 
-    await loadMissionStatus();
     alert(`+${points}pt 獲得しました！`);
+    loadMissionStatus();
   }
 
   return (
@@ -108,9 +104,7 @@ export default function MissionsPage() {
       />
 
       <section className="rounded-3xl bg-orange-50 p-4 text-gray-900">
-        <p className="text-sm text-gray-500">
-          今日の獲得ポイント
-        </p>
+        <p className="text-sm text-gray-500">今日の獲得ポイント</p>
         <p className="mt-1 text-3xl font-bold text-red-900">
           {todayPoints}pt
         </p>
@@ -128,14 +122,9 @@ export default function MissionsPage() {
             description={mission.description}
             points={mission.points}
             completed={completedKeys.includes(mission.key)}
-            onComplete={() => {
-  if (mission.key === "quiz") {
-    window.location.href = "/quiz";
-    return;
-  }
-
-  completeMission(mission.key, mission.points);
-}}
+            onComplete={() =>
+              completeMission(mission.key, mission.points)
+            }
           />
         ))}
       </section>
