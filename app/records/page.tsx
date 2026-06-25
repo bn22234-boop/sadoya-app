@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +19,14 @@ type Wine = {
 };
 
 export default function RecordsPage() {
+  return (
+    <Suspense fallback={<div className="p-5">読み込み中...</div>}>
+      <RecordsContent />
+    </Suspense>
+  );
+}
+
+function RecordsContent() {
   const searchParams = useSearchParams();
 
   const [records, setRecords] = useState<WineRecord[]>([]);
