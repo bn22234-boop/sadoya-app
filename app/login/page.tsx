@@ -60,6 +60,10 @@ export default function LoginPage() {
 
       localStorage.setItem("sadoya_user_id", loginUser.id);
       localStorage.setItem("sadoya_login_id", loginUser.login_id);
+      window.dispatchEvent(new Event("sadoya-auth-changed"));
+
+router.replace("/");
+router.refresh();
 
       router.replace("/");
       router.refresh();
@@ -182,7 +186,7 @@ export default function LoginPage() {
         </form>
 
         <Link
-          href="/"
+          href="/welcome"
           className="mt-6 block text-center text-sm font-bold text-white underline decoration-white/50 underline-offset-4"
         >
           最初の画面へ戻る

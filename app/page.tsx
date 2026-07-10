@@ -53,11 +53,16 @@ export default function HomePage() {
     setCheckingLogin(false);
   }
 
-  function logout() {
-    localStorage.removeItem("sadoya_user_id");
-    localStorage.removeItem("sadoya_login_id");
-    setProfile(null);
-  }
+function logout() {
+  localStorage.removeItem("sadoya_user_id");
+  localStorage.removeItem("sadoya_login_id");
+
+  window.dispatchEvent(
+    new Event("sadoya-auth-changed")
+  );
+
+  setProfile(null);
+}
 
   // ログイン状態を確認している間の画面
   if (checkingLogin) {
@@ -183,17 +188,24 @@ function LoggedInHome({
 }: LoggedInHomeProps) {
   const points = profile.points ?? 0;
 
-  // 100ポイントごとにレベルアップ
-  const level = Math.floor(points / 100) + 1;
+// 0〜99ptは種
+const isSeedStage = points < 100;
 
-  // 次のレベルまでに必要なポイント
-  const pointRemainder = points % 100;
-  const nextPoint = pointRemainder === 0 && points > 0
-    ? 100
-    : 100 - pointRemainder;
+// 100pt到達後にLv.1
+const level = isSeedStage
+  ? 0
+  : Math.floor((points - 100) / 100) + 1;
 
-  // プログレスバー
-  const progress = pointRemainder;
+// 現在の成長段階におけるポイント
+const stageProgress = isSeedStage
+  ? points
+  : (points - 100) % 100;
+
+// 次の成長までのポイント
+const nextPoint = 100 - stageProgress;
+
+// プログレスバー
+const progress = stageProgress;
 
   return (
     <div className="space-y-5 p-5">
@@ -236,24 +248,53 @@ function LoggedInHome({
       </section>
 
       <section className="rounded-3xl bg-red-50 p-5 text-center">
-        <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-inner">
-          <Image
-            src="/images/sadoyan.png"
-            alt="サドヤん"
-            width={130}
-            height={130}
-            priority
-            className="object-contain"
-          />
-        </div>
+  <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-inner">
+  {isSeedStage ? (
+    <div className="text-center">
+      <div className="animate-pulse text-7xl">
+        🌱
+      </div>
 
-        <h2 className="mt-4 text-xl font-bold text-gray-900">
-          サドヤん Lv.{level}
-        </h2>
+      <p className="mt-2 text-xs font-bold text-green-700">
+        大切に育てよう
+      </p>
+    </div>
+  ) : (
+    <Image
+      src="/images/sadoyan.png"
+      alt="子供サドヤん"
+      width={130}
+      height={130}
+      priority
+      className="object-contain"
+    />
+  )}
+</div>
 
-        <p className="text-sm text-gray-500">
-          現在 {points}pt / 次のLvまで {nextPoint}pt
-        </p>
+<h2 className="mt-4 text-xl font-bold text-gray-900">
+  {isSeedStage
+    ? "サドヤんの種"
+    : `子供サドヤん Lv.${level}`}
+</h2>
+
+<p className="text-sm text-gray-500">
+  {isSeedStage
+    ? `発芽まであと ${nextPoint}pt`
+    : `現在 ${points}pt / 次の成長まで ${nextPoint}pt`}
+</p>
+
+<div className="mt-3 h-3 overflow-hidden rounded-full bg-red-100">
+  <div
+    className="h-full rounded-full bg-red-700 transition-all duration-500"
+    style={{
+      width: `${progress}%`,
+    }}
+  />
+</div>
+
+<p className="mt-2 text-xs font-bold text-red-700">
+  {progress} / 100pt
+</p>
 
         <div className="mt-3 h-3 overflow-hidden rounded-full bg-red-100">
           <div

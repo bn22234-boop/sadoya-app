@@ -145,12 +145,21 @@ export default function SignupPage() {
       return;
     }
 
-    // ログイン状態を保存
-    localStorage.setItem("sadoya_user_id", String(data.id));
-    localStorage.setItem("sadoya_login_id", String(data.login_id));
+   localStorage.setItem(
+  "sadoya_user_id",
+  String(data.id)
+);
 
-    // 新規ユーザーはチュートリアルへ
-    router.replace("/tutorial");
+localStorage.setItem(
+  "sadoya_login_id",
+  String(data.login_id)
+);
+
+window.dispatchEvent(
+  new Event("sadoya-auth-changed")
+);
+
+router.replace("/tutorial");
   } catch (error) {
     console.error("予期しない新規登録エラー:", error);
     alert("新規登録中にエラーが発生しました");

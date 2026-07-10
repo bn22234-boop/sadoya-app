@@ -8,40 +8,39 @@ import { supabase } from "@/lib/supabase";
 type TutorialStep = {
   title: string;
   message: string;
-  image?: string;
-  emoji?: string;
+  type: "sadoyan" | "wine" | "growth" | "seed" | "start";
 };
 
 const tutorialSteps: TutorialStep[] = [
   {
-    title: "はじめまして！",
+    title: "ワインの世界へようこそ！",
     message:
-      "ぼくはサドヤん！これから君と一緒に、ワインの世界を楽しんでいくよ。",
-    image: "/images/sadoyan.png",
+      "こんにちは！ぼくはサドヤん。これから君と一緒に、ワインの世界を旅していくよ！",
+    type: "sadoyan",
   },
   {
-    title: "ワインを知ろう",
+    title: "ワインを楽しもう",
     message:
-      "サドヤのワインを見たり、クイズに挑戦したりしながら、ワインについて楽しく学べるよ。",
-    emoji: "🍷",
+      "サドヤのワインを知ったり、飲んだワインを記録したり、クイズで楽しく学んだりできるよ。",
+    type: "wine",
   },
   {
-    title: "ミッションに挑戦",
+    title: "一緒に成長しよう",
     message:
-      "毎日のミッションをクリアするとポイントがもらえるよ。ポイントを集めて、ぼくを成長させてね！",
-    emoji: "🎯",
+      "ミッションやクイズに挑戦すると、ぼくは少しずつ成長していくよ。毎日一緒に頑張ろう！",
+    type: "growth",
   },
   {
-    title: "ワインの思い出を記録",
+    title: "君に渡したいもの",
     message:
-      "飲んだワインの評価や感想を記録できるよ。お気に入りのワインをたくさん見つけよう！",
-    emoji: "📝",
+      "これは、ぼくが生まれる特別なブドウの種。君の力で、大切に育ててくれる？",
+    type: "seed",
   },
   {
-    title: "一緒に始めよう！",
+    title: "物語の始まり",
     message:
-      "ブドウを育てて、収穫して、いつか素敵なワインを完成させよう。君との物語が、ここから始まるよ！",
-    image: "/images/sadoyan.png",
+      "ぼくはまだ小さな種。でも、君と一緒なら立派なサドヤんになれる。今日からよろしくね！",
+    type: "start",
   },
 ];
 
@@ -51,6 +50,7 @@ export default function TutorialPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [checkingUser, setCheckingUser] = useState(true);
   const [finishing, setFinishing] = useState(false);
+  const [seedReceived, setSeedReceived] = useState(false);
 
   const step = tutorialSteps[currentStep];
   const isLastStep = currentStep === tutorialSteps.length - 1;
@@ -74,15 +74,11 @@ export default function TutorialPage() {
       .single();
 
     if (error || !data) {
-      console.error(
-        "チュートリアル情報の取得に失敗しました:",
-        error?.message
-      );
+      console.error("ユーザー情報取得エラー:", error?.message);
       router.replace("/");
       return;
     }
 
-    // すでに完了している場合は通常ホームへ
     if (data.tutorial_completed) {
       router.replace("/");
       return;
@@ -92,18 +88,29 @@ export default function TutorialPage() {
   }
 
   function goNext() {
+    if (step.type === "seed" && !seedReceived) {
+      setSeedReceived(true);
+
+      window.setTimeout(() => {
+        setCurrentStep((previous) => previous + 1);
+      }, 900);
+
+      return;
+    }
+
     if (isLastStep) {
       finishTutorial();
       return;
     }
 
-    setCurrentStep((previousStep) => previousStep + 1);
+    setCurrentStep((previous) => previous + 1);
   }
 
   function goBack() {
-    if (currentStep === 0) return;
+    if (currentStep === 0 || finishing) return;
 
-    setCurrentStep((previousStep) => previousStep - 1);
+    setSeedReceived(false);
+    setCurrentStep((previous) => previous - 1);
   }
 
   async function finishTutorial() {
@@ -124,10 +131,7 @@ export default function TutorialPage() {
       .eq("id", userId);
 
     if (error) {
-      console.error(
-        "チュートリアル完了処理に失敗しました:",
-        error.message
-      );
+      console.error("チュートリアル保存エラー:", error.message);
       alert("チュートリアルの保存に失敗しました");
       setFinishing(false);
       return;
@@ -152,15 +156,13 @@ export default function TutorialPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-[#fffaf6] px-6 pb-8 pt-8 text-gray-900">
-      {/* 背景装飾 */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-red-100/70" />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-orange-100/70" />
+    <main className="relative flex min-h-screen overflow-hidden bg-[#fffaf6] px-6 pb-8 pt-8 text-gray-900">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-red-100/70" />
+      <div className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-orange-100/70" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col">
-        {/* 上部 */}
         <header className="flex items-center justify-between">
-          <p className="text-sm font-bold tracking-[0.12em] text-red-900">
+          <p className="text-xs font-bold tracking-[0.18em] text-red-900">
             SADOYA WINE APP
           </p>
 
@@ -169,37 +171,25 @@ export default function TutorialPage() {
           </p>
         </header>
 
-        {/* プログレスバー */}
         <div className="mt-4 flex gap-2">
           {tutorialSteps.map((_, index) => (
             <div
               key={index}
-              className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+              className={`h-2 flex-1 rounded-full transition-all duration-500 ${
                 index <= currentStep ? "bg-red-800" : "bg-red-100"
               }`}
             />
           ))}
         </div>
 
-        {/* メインカード */}
-        <section className="my-auto py-10">
+        <section className="my-auto py-8">
           <div className="rounded-[2rem] border border-red-100 bg-white p-7 text-center shadow-xl">
-            <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-full bg-red-50 shadow-inner">
-              {step.image ? (
-                <Image
-                  src={step.image}
-                  alt="サドヤん"
-                  width={170}
-                  height={170}
-                  priority
-                  className="object-contain"
-                />
-              ) : (
-                <span className="text-8xl">{step.emoji}</span>
-              )}
-            </div>
+            <TutorialVisual
+              type={step.type}
+              seedReceived={seedReceived}
+            />
 
-            <h1 className="mt-7 text-3xl font-bold text-red-950">
+            <h1 className="mt-7 text-3xl font-bold leading-tight text-red-950">
               {step.title}
             </h1>
 
@@ -207,49 +197,86 @@ export default function TutorialPage() {
               {step.message}
             </p>
 
-            {currentStep === 2 && (
-              <div className="mt-6 space-y-2 text-left text-sm">
-                <div className="rounded-2xl bg-red-50 px-4 py-3">
-                  ✅ ログインする
-                  <span className="float-right font-bold text-red-800">
-                    +10pt
-                  </span>
+            {step.type === "wine" && (
+              <div className="mt-6 grid grid-cols-3 gap-2 text-xs font-bold">
+                <div className="rounded-2xl bg-red-50 px-2 py-4 text-red-900">
+                  <div className="text-3xl">🍷</div>
+                  <p className="mt-2">ワインを知る</p>
                 </div>
 
-                <div className="rounded-2xl bg-red-50 px-4 py-3">
-                  □ クイズに挑戦する
-                  <span className="float-right font-bold text-red-800">
-                    +30pt
-                  </span>
+                <div className="rounded-2xl bg-red-50 px-2 py-4 text-red-900">
+                  <div className="text-3xl">📝</div>
+                  <p className="mt-2">記録する</p>
                 </div>
 
-                <div className="rounded-2xl bg-red-50 px-4 py-3">
-                  □ ワインを記録する
-                  <span className="float-right font-bold text-red-800">
-                    +50pt
-                  </span>
+                <div className="rounded-2xl bg-red-50 px-2 py-4 text-red-900">
+                  <div className="text-3xl">❓</div>
+                  <p className="mt-2">クイズに挑戦</p>
                 </div>
+              </div>
+            )}
+
+            {step.type === "growth" && (
+              <div className="mt-6 rounded-2xl bg-red-50 p-4">
+                <div className="flex items-center justify-center gap-2 text-3xl">
+                  <span>🌱</span>
+                  <span className="text-lg text-red-400">→</span>
+                  <span>👶</span>
+                  <span className="text-lg text-red-400">→</span>
+                  <span>🍇</span>
+                  <span className="text-lg text-red-400">→</span>
+                  <span>🍷</span>
+                </div>
+
+                <p className="mt-3 text-xs font-bold text-red-900">
+                  挑戦するほどサドヤんが成長！
+                </p>
+              </div>
+            )}
+
+            {step.type === "seed" && seedReceived && (
+              <div className="mt-5 animate-pulse rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-bold text-yellow-800">
+                サドヤんの種を手に入れた！
+              </div>
+            )}
+
+            {step.type === "start" && (
+              <div className="mt-6 rounded-2xl border border-red-100 bg-[#fffaf6] p-4">
+                <p className="text-xs font-bold text-gray-500">
+                  あなたの最初のサドヤん
+                </p>
+
+                <p className="mt-2 text-lg font-bold text-red-950">
+                  🌱 サドヤんの種
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  100ptで子供サドヤんが誕生します
+                </p>
               </div>
             )}
           </div>
         </section>
 
-        {/* 操作ボタン */}
         <div className="space-y-3">
           <button
             type="button"
             onClick={goNext}
-            disabled={finishing}
-            className="w-full rounded-2xl bg-red-900 py-4 font-bold text-white shadow-lg transition active:scale-[0.98] disabled:opacity-50"
+            disabled={finishing || (step.type === "seed" && seedReceived)}
+            className="w-full rounded-2xl bg-red-900 py-4 font-bold text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
           >
             {finishing
-              ? "準備中..."
-              : isLastStep
-                ? "サドヤんと始める"
-                : "次へ"}
+              ? "物語を準備しています..."
+              : step.type === "seed"
+                ? seedReceived
+                  ? "種を受け取りました"
+                  : "🌱 サドヤんの種を受け取る"
+                : isLastStep
+                  ? "サドヤんと一緒に始める"
+                  : "次へ"}
           </button>
 
-          {currentStep > 0 && (
+          {currentStep > 0 && step.type !== "seed" && (
             <button
               type="button"
               onClick={goBack}
@@ -262,5 +289,74 @@ export default function TutorialPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+type TutorialVisualProps = {
+  type: TutorialStep["type"];
+  seedReceived: boolean;
+};
+
+function TutorialVisual({
+  type,
+  seedReceived,
+}: TutorialVisualProps) {
+  if (type === "sadoyan") {
+    return (
+      <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-full bg-red-50 shadow-inner">
+        <Image
+          src="/images/sadoyan.png"
+          alt="サドヤん"
+          width={170}
+          height={170}
+          priority
+          className="object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (type === "wine") {
+    return (
+      <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-full bg-red-50 text-8xl shadow-inner">
+        🍷
+      </div>
+    );
+  }
+
+  if (type === "growth") {
+    return (
+      <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-full bg-green-50 text-8xl shadow-inner">
+        🌱
+      </div>
+    );
+  }
+
+  if (type === "seed") {
+    return (
+      <div
+        className={`mx-auto flex h-52 w-52 items-center justify-center rounded-full shadow-inner transition-all duration-700 ${
+          seedReceived
+            ? "scale-110 bg-yellow-50 shadow-yellow-200"
+            : "bg-red-50"
+        }`}
+      >
+        <div
+          className={`transition-all duration-700 ${
+            seedReceived
+              ? "scale-125 animate-bounce"
+              : "scale-100"
+          }`}
+        >
+          <div className="text-8xl">🌱</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-full bg-green-50 text-8xl shadow-inner">
+      🌱
+    </div>
   );
 }
