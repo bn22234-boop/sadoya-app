@@ -52,47 +52,112 @@ export default function SignupPage() {
   }
 
   async function signup() {
-    const fixedLoginId = loginId.trim();
+  const fixedLoginId = loginId.trim();
+  const fixedName = name.trim();
 
-    if (!fixedLoginId || !password || !name || !wineExperience || !favoriteTaste) {
-      alert("すべて入力してください");
+  // 二重送信防止
+  if (loading) return;
+
+  // 入力チェック
+  if (
+    !fixedLoginId ||
+    !password ||
+    !fixedName ||
+    !wineExperience ||
+    !favoriteTaste
+  ) {
+    alert("すべて入力してください");
+    return;
+  }
+
+  if (fixedLoginId.length < 4) {
+    alert("ログインIDは4文字以上にしてください");
+    return;
+  }
+
+  if (password.length < 4) {
+    alert("パスワードは4文字以上にしてください");
+    return;
+  }
+
+  if (idAvailable !== true) {
+    if (checkingId) {
+      alert("ログインIDを確認中です。少し待ってからもう一度押してください");
+    } else {
+      alert("使用できるログインIDを入力してください");
+    }
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // 念のため登録直前にもID重複を再確認
+    const { data: existingProfile, error: checkError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("login_id", fixedLoginId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("ID確認エラー:", checkError);
+      alert("ログインIDの確認に失敗しました");
       return;
     }
 
-    if (password.length < 4) {
-      alert("パスワードは4文字以上にしてください");
-      return;
-    }
-
-    if (idAvailable === false) {
+    if (existingProfile) {
+      setIdAvailable(false);
       alert("このIDはすでに使われています");
       return;
     }
 
-    setLoading(true);
-
+    // プロフィール作成
     const { data, error } = await supabase.rpc(
       "create_profile_with_password",
       {
         p_login_id: fixedLoginId,
         p_password: password,
-        p_name: name,
+        p_name: fixedName,
         p_wine_experience: wineExperience,
         p_favorite_taste: favoriteTaste,
       }
     );
 
     if (error) {
-      alert(error.message);
-      setLoading(false);
+      console.error("新規登録エラー:", error);
+
+      if (
+        error.message.includes("duplicate") ||
+        error.message.includes("unique")
+      ) {
+        setIdAvailable(false);
+        alert("このIDはすでに使われています");
+        return;
+      }
+
+      alert(error.message || "新規登録に失敗しました");
       return;
     }
 
-    localStorage.setItem("sadoya_user_id", data.id);
-    localStorage.setItem("sadoya_login_id", data.login_id);
+    if (!data?.id || !data?.login_id) {
+      console.error("登録結果が不正です:", data);
+      alert("ユーザー情報の作成に失敗しました");
+      return;
+    }
 
-    router.push("/");
+    // ログイン状態を保存
+    localStorage.setItem("sadoya_user_id", String(data.id));
+    localStorage.setItem("sadoya_login_id", String(data.login_id));
+
+    // 新規ユーザーはチュートリアルへ
+    router.replace("/tutorial");
+  } catch (error) {
+    console.error("予期しない新規登録エラー:", error);
+    alert("新規登録中にエラーが発生しました");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <div className="min-h-screen bg-[#fffaf6] p-5 text-gray-900">

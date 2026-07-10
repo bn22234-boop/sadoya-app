@@ -10,6 +10,7 @@ export default function LayoutClient() {
     "/",
     "/login",
     "/signup",
+    "/tutorial",
   ].includes(pathname);
 
   if (hideBottomNav) return null;
