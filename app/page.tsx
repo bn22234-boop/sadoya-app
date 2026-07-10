@@ -90,7 +90,7 @@ export default function HomePage() {
 function WelcomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-black">
-      {/* サドヤの背景画像 */}
+      {"sadoya-login.jpg"}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
