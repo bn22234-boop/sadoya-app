@@ -58,15 +58,35 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem("sadoya_user_id", loginUser.id);
-      localStorage.setItem("sadoya_login_id", loginUser.login_id);
-      window.dispatchEvent(new Event("sadoya-auth-changed"));
+      localStorage.setItem("sadoya_user_id", String(data.id));
+localStorage.setItem("sadoya_login_id", String(data.login_id));
 
-router.replace("/");
+window.dispatchEvent(new Event("sadoya-auth-changed"));
+
+const { data: profile, error: profileError } = await supabase
+  .from("profiles")
+  .select("tutorial_completed")
+  .eq("id", data.id)
+  .single();
+
+if (profileError) {
+  console.error(
+    "チュートリアル状態の取得エラー:",
+    profileError.message
+  );
+
+  alert("ユーザー情報の取得に失敗しました");
+  setLoading(false);
+  return;
+}
+
+if (profile.tutorial_completed) {
+  router.replace("/");
+} else {
+  router.replace("/tutorial");
+}
+
 router.refresh();
-
-      router.replace("/");
-      router.refresh();
     } catch (error) {
       console.error("ログインエラー:", error);
       alert("ログイン中にエラーが発生しました");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -12,9 +13,19 @@ type Profile = {
   points: number;
   level: number;
   role: string;
+  tutorial_completed: boolean;
+  character_stage?: number;
+  has_sadoyan_seed?: boolean;
+};
+
+type LoggedInHomeProps = {
+  profile: Profile;
+  onLogout: () => void;
 };
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checkingLogin, setCheckingLogin] = useState(true);
 
@@ -25,27 +36,52 @@ export default function HomePage() {
   async function loadProfile() {
     const userId = localStorage.getItem("sadoya_user_id");
 
-    // 未ログインならウェルカム画面を表示
+    // 未ログインならWelcome画面
     if (!userId) {
+      setProfile(null);
       setCheckingLogin(false);
       return;
     }
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, login_id, name, points, level, role")
+      .select(
+        `
+        id,
+        login_id,
+        name,
+        points,
+        level,
+        role,
+        tutorial_completed,
+        character_stage,
+        has_sadoyan_seed
+        `
+      )
       .eq("id", userId)
       .single();
 
     if (error || !data) {
-      console.error("プロフィール取得エラー:", error?.message);
+      console.error(
+        "プロフィール取得エラー:",
+        error?.message
+      );
 
-      // 保存されたIDが無効ならログイン情報を削除
       localStorage.removeItem("sadoya_user_id");
       localStorage.removeItem("sadoya_login_id");
 
+      window.dispatchEvent(
+        new Event("sadoya-auth-changed")
+      );
+
       setProfile(null);
       setCheckingLogin(false);
+      return;
+    }
+
+    // チュートリアル未完了ならTutorialへ
+    if (!data.tutorial_completed) {
+      router.replace("/tutorial");
       return;
     }
 
@@ -53,65 +89,73 @@ export default function HomePage() {
     setCheckingLogin(false);
   }
 
-function logout() {
-  localStorage.removeItem("sadoya_user_id");
-  localStorage.removeItem("sadoya_login_id");
+  function logout() {
+    localStorage.removeItem("sadoya_user_id");
+    localStorage.removeItem("sadoya_login_id");
 
-  window.dispatchEvent(
-    new Event("sadoya-auth-changed")
-  );
-
-  setProfile(null);
-}
-
-  // ログイン状態を確認している間の画面
-  if (checkingLogin) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf6]">
-        <div className="text-center">
-          <div className="animate-bounce text-6xl">🍇</div>
-
-          <p className="mt-5 text-sm font-bold text-red-900">
-            SADOYA Wine App
-          </p>
-
-          <p className="mt-2 text-sm text-gray-500">
-            読み込んでいます...
-          </p>
-        </div>
-      </div>
+    window.dispatchEvent(
+      new Event("sadoya-auth-changed")
     );
+
+    setProfile(null);
+    router.replace("/");
+    router.refresh();
   }
 
-  // 未ログイン時はウェルカム画面
+  if (checkingLogin) {
+    return <LoadingScreen />;
+  }
+
   if (!profile) {
     return <WelcomePage />;
   }
 
-  // ログイン済みなら通常ホーム
-  return <LoggedInHome profile={profile} onLogout={logout} />;
+  return (
+    <LoggedInHome
+      profile={profile}
+      onLogout={logout}
+    />
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#fffaf6]">
+      <div className="text-center">
+        <div className="animate-bounce text-6xl">
+          🍇
+        </div>
+
+        <p className="mt-5 text-sm font-bold text-red-900">
+          SADOYA Wine App
+        </p>
+
+        <p className="mt-2 text-sm text-gray-500">
+          読み込んでいます...
+        </p>
+      </div>
+    </main>
+  );
 }
 
 function WelcomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-black">
-      {/* サドヤの背景画像 */}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/images/sadoya-login.jpg')",
+          backgroundImage:
+            "url('/images/wine.jpg')",
         }}
       />
 
-      {/* 写真を少し暗くして文字を読みやすくする */}
       <div className="absolute inset-0 bg-black/35" />
 
-      {/* 下側をワイン色にするグラデーション */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-red-950/90" />
 
       <div className="relative z-10 flex min-h-screen flex-col justify-end px-6 pb-10 pt-16 text-white">
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-8 text-center">
+          <section className="mb-8 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/40 bg-white/20 text-5xl shadow-xl backdrop-blur-md">
               🍇
             </div>
@@ -131,14 +175,15 @@ function WelcomePage() {
               <br />
               ワインを知って、楽しんで、育てよう。
             </p>
-          </div>
+          </section>
 
-          <div className="space-y-3 rounded-[2rem] border border-white/30 bg-white/90 p-5 text-gray-900 shadow-2xl backdrop-blur-md">
+          <section className="space-y-3 rounded-[2rem] border border-white/30 bg-white/90 p-5 text-gray-900 shadow-2xl backdrop-blur-md">
             <Link
               href="/signup"
               className="block w-full rounded-2xl bg-red-900 py-4 text-center font-bold text-white shadow-md transition active:scale-[0.98]"
             >
               初めての方はこちら
+
               <span className="mt-1 block text-xs font-normal text-white/80">
                 新規登録
               </span>
@@ -149,38 +194,49 @@ function WelcomePage() {
               className="block w-full rounded-2xl border border-red-200 bg-white py-4 text-center font-bold text-red-950 transition active:scale-[0.98]"
             >
               アカウントをお持ちの方
+
               <span className="mt-1 block text-xs font-normal text-gray-500">
                 ログイン
               </span>
             </Link>
-          </div>
+          </section>
 
-          <div className="mt-7 grid grid-cols-3 gap-2 text-center text-xs text-white/90">
+          <section className="mt-7 grid grid-cols-3 gap-2 text-center text-xs text-white/90">
             <div className="rounded-2xl bg-black/25 px-2 py-3 backdrop-blur-sm">
-              <div className="text-2xl">🍷</div>
-              <p className="mt-1">ワインを知る</p>
+              <div className="text-2xl">
+                🍷
+              </div>
+
+              <p className="mt-1">
+                ワインを知る
+              </p>
             </div>
 
             <div className="rounded-2xl bg-black/25 px-2 py-3 backdrop-blur-sm">
-              <div className="text-2xl">📝</div>
-              <p className="mt-1">記録を残す</p>
+              <div className="text-2xl">
+                📝
+              </div>
+
+              <p className="mt-1">
+                記録を残す
+              </p>
             </div>
 
             <div className="rounded-2xl bg-black/25 px-2 py-3 backdrop-blur-sm">
-              <div className="text-2xl">🍇</div>
-              <p className="mt-1">サドヤんを育てる</p>
+              <div className="text-2xl">
+                🌱
+              </div>
+
+              <p className="mt-1">
+                サドヤんを育てる
+              </p>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </main>
   );
 }
-
-type LoggedInHomeProps = {
-  profile: Profile;
-  onLogout: () => void;
-};
 
 function LoggedInHome({
   profile,
@@ -188,24 +244,53 @@ function LoggedInHome({
 }: LoggedInHomeProps) {
   const points = profile.points ?? 0;
 
-// 0〜99ptは種
-const isSeedStage = points < 100;
+  // 0〜99ptはサドヤんの種
+  const isSeedStage = points < 100;
 
-// 100pt到達後にLv.1
-const level = isSeedStage
-  ? 0
-  : Math.floor((points - 100) / 100) + 1;
+  // 100ptで子供サドヤんLv.1
+  const level = isSeedStage
+    ? 0
+    : Math.floor((points - 100) / 100) + 1;
 
-// 現在の成長段階におけるポイント
-const stageProgress = isSeedStage
-  ? points
-  : (points - 100) % 100;
+  // 現在の段階における進捗
+  const stageProgress = isSeedStage
+    ? points
+    : (points - 100) % 100;
 
-// 次の成長までのポイント
-const nextPoint = 100 - stageProgress;
+  // 次の成長まで
+  const nextPoint =
+    stageProgress === 0 && !isSeedStage
+      ? 100
+      : 100 - stageProgress;
 
-// プログレスバー
-const progress = stageProgress;
+  const progress = stageProgress;
+
+  const stageLabel = isSeedStage
+    ? "Stage 0"
+    : `Stage ${level}`;
+
+  const characterName = isSeedStage
+    ? "サドヤんの種"
+    : `子供サドヤん Lv.${level}`;
+
+  const seedMessages = [
+    `あと${nextPoint}ptでぼくが生まれるよ！`,
+    "今日も少しずつ育ててね！",
+    "ミッションに挑戦してみよう！",
+  ];
+
+  const childMessages = [
+    `あと${nextPoint}ptで次の成長だよ！`,
+    "今日も会いに来てくれてありがとう！",
+    "ワインクイズに挑戦してみない？",
+  ];
+
+  const messages = isSeedStage
+    ? seedMessages
+    : childMessages;
+
+  const message =
+    messages[new Date().getDate() % messages.length];
 
   return (
     <div className="space-y-5 p-5">
@@ -232,7 +317,7 @@ const progress = stageProgress;
               ログイン中
             </p>
 
-            <p className="font-bold text-white">
+            <p className="max-w-[100px] truncate font-bold text-white">
               {profile.login_id}
             </p>
 
@@ -248,55 +333,54 @@ const progress = stageProgress;
       </section>
 
       <section className="rounded-3xl bg-red-50 p-5 text-center">
-  <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-white shadow-inner">
-  {isSeedStage ? (
-    <div className="text-center">
-      <div className="animate-pulse text-7xl">
-        🌱
-      </div>
+        <div className="mb-4 rounded-2xl bg-white px-4 py-3 text-left shadow-sm">
+          <p className="text-sm font-bold text-red-900">
+            サドヤん
+          </p>
 
-      <p className="mt-2 text-xs font-bold text-green-700">
-        大切に育てよう
-      </p>
-    </div>
-  ) : (
-    <Image
-      src="/images/sadoyan.png"
-      alt="子供サドヤん"
-      width={130}
-      height={130}
-      priority
-      className="object-contain"
-    />
-  )}
-</div>
+          <p className="mt-1 text-sm text-gray-600">
+            「{message}」
+          </p>
+        </div>
 
-<h2 className="mt-4 text-xl font-bold text-gray-900">
-  {isSeedStage
-    ? "サドヤんの種"
-    : `子供サドヤん Lv.${level}`}
-</h2>
+        <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full bg-white shadow-inner">
+          {isSeedStage ? (
+            <div className="text-center">
+              <div className="animate-pulse text-7xl">
+                🌱
+              </div>
 
-<p className="text-sm text-gray-500">
-  {isSeedStage
-    ? `発芽まであと ${nextPoint}pt`
-    : `現在 ${points}pt / 次の成長まで ${nextPoint}pt`}
-</p>
+              <p className="mt-2 text-xs font-bold text-green-700">
+                大切に育てよう
+              </p>
+            </div>
+          ) : (
+            <Image
+              src="/images/sadoyan.png"
+              alt="子供サドヤん"
+              width={140}
+              height={140}
+              priority
+              className="object-contain"
+            />
+          )}
+        </div>
 
-<div className="mt-3 h-3 overflow-hidden rounded-full bg-red-100">
-  <div
-    className="h-full rounded-full bg-red-700 transition-all duration-500"
-    style={{
-      width: `${progress}%`,
-    }}
-  />
-</div>
+        <p className="mt-4 text-sm font-bold text-red-700">
+          {stageLabel}
+        </p>
 
-<p className="mt-2 text-xs font-bold text-red-700">
-  {progress} / 100pt
-</p>
+        <h2 className="mt-1 text-2xl font-bold text-gray-900">
+          {characterName}
+        </h2>
 
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-red-100">
+        <p className="mt-2 text-sm text-gray-500">
+          {isSeedStage
+            ? `発芽まであと ${nextPoint}pt`
+            : `現在 ${points}pt / 次の成長まで ${nextPoint}pt`}
+        </p>
+
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-red-100">
           <div
             className="h-full rounded-full bg-red-700 transition-all duration-500"
             style={{
@@ -304,6 +388,10 @@ const progress = stageProgress;
             }}
           />
         </div>
+
+        <p className="mt-2 text-xs font-bold text-red-700">
+          {progress} / 100pt
+        </p>
       </section>
 
       <section className="rounded-3xl border border-red-100 bg-white p-4 text-gray-900">
@@ -345,10 +433,34 @@ const progress = stageProgress;
         </h2>
 
         <div className="mt-3 space-y-2 text-sm">
-          <p>✅ ログインする +10pt</p>
-          <p>□ ワインクイズに挑戦 +30pt</p>
-          <p>□ ワインを記録する +50pt</p>
+          <p>
+            ✅ ログインする
+            <span className="float-right font-bold text-red-700">
+              +10pt
+            </span>
+          </p>
+
+          <p>
+            □ ワインクイズに挑戦
+            <span className="float-right font-bold text-red-700">
+              +30pt
+            </span>
+          </p>
+
+          <p>
+            □ ワインを記録する
+            <span className="float-right font-bold text-red-700">
+              +50pt
+            </span>
+          </p>
         </div>
+
+        <Link
+          href="/missions"
+          className="mt-4 block rounded-2xl border border-red-200 py-3 text-center text-sm font-bold text-red-800"
+        >
+          ミッションを見る
+        </Link>
       </section>
 
       <Link
