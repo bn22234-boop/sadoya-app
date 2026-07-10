@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import BottomNav from "../components/BottomNav";
+import LayoutClient from "./LayoutClient";
 
 export const metadata: Metadata = {
   title: "SADOYA Wine App",
@@ -18,7 +18,8 @@ export default function RootLayout({
         <main className="mx-auto min-h-screen max-w-md bg-white pb-24">
           {children}
         </main>
-        <BottomNav />
+
+        <LayoutClient />
       </body>
     </html>
   );
