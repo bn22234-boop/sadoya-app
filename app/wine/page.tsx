@@ -162,21 +162,21 @@ export default function WinePage() {
             className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
           >
             <div className="flex gap-4">
-              <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-red-50">
-                {wine.image_url ? (
-                  <Image
-                    src={wine.image_url}
-                    alt={wine.name}
-                    fill
-                    sizes="96px"
-                    className="object-contain p-2"
-                  />
-                ) : (
-                  <span className="text-5xl">
-                    {wine.image_emoji || "🍷"}
-                  </span>
-                )}
-              </div>
+              <div className="relative h-40 w-28 shrink-0 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
+  {wine.image_url ? (
+    <Image
+      src={wine.image_url}
+      alt={wine.name}
+      fill
+      sizes="112px"
+      className="object-contain scale-125 transition-transform duration-300 hover:scale-135"
+    />
+  ) : (
+    <div className="flex h-full items-center justify-center text-5xl">
+      {wine.image_emoji || "🍷"}
+    </div>
+  )}
+</div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap gap-2">
