@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 type Wine = {
@@ -14,7 +15,8 @@ type Wine = {
   price_label: string;
   description: string | null;
   beginner_score: number;
-  image_emoji: string;
+  image_emoji: string | null;
+  image_url: string | null;
 };
 
 const categories = [
@@ -60,13 +62,14 @@ export default function WinePage() {
 
     const { data, error } = await query;
 
-    console.log("wines data =", data);
-    console.log("wines error =", error);
-
-    if (data) {
-      setWines(data);
+    if (error) {
+      console.error("ワイン取得エラー:", error.message);
+      setWines([]);
+      setLoading(false);
+      return;
     }
 
+    setWines((data ?? []) as Wine[]);
     setLoading(false);
   }
 
@@ -86,6 +89,7 @@ export default function WinePage() {
         <h2 className="text-xl font-bold">
           好みに合うワインを探そう
         </h2>
+
         <p className="mt-2 text-sm opacity-80">
           種類や価格帯で絞り込んで、初心者でも選びやすく。
         </p>
@@ -101,6 +105,7 @@ export default function WinePage() {
             {categories.map((item) => (
               <button
                 key={item.value}
+                type="button"
                 onClick={() => setCategory(item.value)}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${
                   category === item.value
@@ -123,6 +128,7 @@ export default function WinePage() {
             {priceRanges.map((item) => (
               <button
                 key={item.value}
+                type="button"
                 onClick={() => setPriceRange(item.value)}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${
                   priceRange === item.value
@@ -156,11 +162,23 @@ export default function WinePage() {
             className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
           >
             <div className="flex gap-4">
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-red-100 text-5xl">
-                {wine.image_emoji}
+              <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-red-50">
+                {wine.image_url ? (
+                  <Image
+                    src={wine.image_url}
+                    alt={wine.name}
+                    fill
+                    sizes="96px"
+                    className="object-contain p-2"
+                  />
+                ) : (
+                  <span className="text-5xl">
+                    {wine.image_emoji || "🍷"}
+                  </span>
+                )}
               </div>
 
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
                     {wine.category_label}
@@ -176,22 +194,27 @@ export default function WinePage() {
                 </h2>
 
                 <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                  {wine.description}
+                  {wine.description || "説明は準備中です。"}
                 </p>
 
                 <p className="mt-2 text-xs text-red-700">
-                  初心者向け {"★".repeat(wine.beginner_score)}
+                  初心者向け{" "}
+                  {"★".repeat(wine.beginner_score)}
+                  {"☆".repeat(
+                    Math.max(0, 5 - wine.beginner_score)
+                  )}
                 </p>
 
                 <p className="mt-1 text-sm font-bold text-gray-800">
                   ¥{wine.price.toLocaleString()}
                 </p>
+
                 <Link
-  href={`/records?wine=${encodeURIComponent(wine.name)}`}
-  className="mt-3 block rounded-2xl bg-red-800 py-2 text-center text-sm font-bold text-white"
->
-  このワインを記録する
-</Link>
+                  href={`/records?wine=${encodeURIComponent(wine.name)}`}
+                  className="mt-3 block rounded-2xl bg-red-800 py-2 text-center text-sm font-bold text-white"
+                >
+                  このワインを記録する
+                </Link>
               </div>
             </div>
           </section>
