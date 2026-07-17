@@ -206,7 +206,7 @@ router.refresh();
         </form>
 
         <Link
-          href="/welcome"
+          href="/"
           className="mt-6 block text-center text-sm font-bold text-white underline decoration-white/50 underline-offset-4"
         >
           最初の画面へ戻る

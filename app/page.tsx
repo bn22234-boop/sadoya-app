@@ -145,7 +145,7 @@ function WelcomePage() {
         className="absolute inset-0 bg-cover bg-center"
         style={{
           backgroundImage:
-            "url('/images/wine.jpg')",
+            "url('/images/sadoya-login.jpg')",
         }}
       />
 
