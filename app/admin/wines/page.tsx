@@ -83,7 +83,7 @@ export default function AdminWinesPage() {
     if (value === "white") return "白";
     if (value === "rose") return "ロゼ";
     if (value === "sparkling") return "スパークリング";
-    if (value === "その他") return "その他";
+    return "その他";
   }
 
   function getPriceRange(value: number) {
@@ -237,6 +237,7 @@ export default function AdminWinesPage() {
             <option value="white">白</option>
             <option value="rose">ロゼ</option>
             <option value="sparkling">スパークリング</option>
+            <option value="other">その他</option>
           </select>
 
           <input
