@@ -17,6 +17,7 @@ type Wine = {
   beginner_score: number;
   image_emoji: string | null;
   image_url: string | null;
+  is_active: boolean;
 };
 
 const categories = [
@@ -25,7 +26,7 @@ const categories = [
   { value: "white", label: "白" },
   { value: "sparkling", label: "泡" },
   { value: "rose", label: "ロゼ" },
-  { value: "その他", label: "その他"},
+  { value: "other", label: "その他" },
 ];
 
 const priceRanges = [
@@ -49,9 +50,10 @@ export default function WinePage() {
     setLoading(true);
 
     let query = supabase
-      .from("wines")
-      .select("*")
-      .order("created_at", { ascending: true });
+  .from("wines")
+  .select("*")
+  .eq("is_active", true)
+  .order("display_order", { ascending: true });
 
     if (category !== "all") {
       query = query.eq("category", category);
@@ -76,15 +78,18 @@ export default function WinePage() {
 
   return (
     <div className="space-y-5 p-5 pb-24">
-      <div className="flex items-center justify-between">
+      <header className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-red-900">
           ワインリスト
         </h1>
 
-        <Link href="/" className="font-bold text-red-700">
+        <Link
+          href="/"
+          className="font-bold text-red-700"
+        >
           ホームへ
         </Link>
-      </div>
+      </header>
 
       <section className="rounded-3xl bg-red-900 p-5 text-white shadow">
         <h2 className="text-xl font-bold">
@@ -102,13 +107,13 @@ export default function WinePage() {
             種類
           </p>
 
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setCategory(item.value)}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
                   category === item.value
                     ? "bg-red-900 text-white"
                     : "bg-red-50 text-red-900"
@@ -125,13 +130,13 @@ export default function WinePage() {
             価格帯
           </p>
 
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {priceRanges.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setPriceRange(item.value)}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
                   priceRange === item.value
                     ? "bg-red-900 text-white"
                     : "bg-red-50 text-red-900"
@@ -145,82 +150,110 @@ export default function WinePage() {
       </section>
 
       {loading && (
-        <p className="rounded-3xl bg-white p-5 text-sm text-gray-500">
-          読み込み中...
-        </p>
+        <section className="rounded-3xl bg-white p-5 text-center shadow-sm">
+          <div className="animate-bounce text-4xl">
+            🍷
+          </div>
+
+          <p className="mt-3 text-sm font-bold text-gray-500">
+            読み込み中...
+          </p>
+        </section>
       )}
 
       {!loading && wines.length === 0 && (
-        <p className="rounded-3xl bg-white p-5 text-sm text-gray-500">
-          条件に合うワインがありません。
-        </p>
+        <section className="rounded-3xl bg-white p-5 text-center shadow-sm">
+          <div className="text-5xl">
+            🍷
+          </div>
+
+          <p className="mt-3 text-sm text-gray-500">
+            条件に合うワインがありません。
+          </p>
+        </section>
       )}
 
-      <div className="space-y-4">
-        {wines.map((wine) => (
-          <section
-            key={wine.id}
-            className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
-          >
-            <div className="flex gap-4">
-              <div className="relative h-40 w-28 shrink-0 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
-  {wine.image_url ? (
-    <Image
-      src={wine.image_url}
-      alt={wine.name}
-      fill
-      sizes="112px"
-      className="object-contain scale-125 transition-transform duration-300 hover:scale-135"
-    />
-  ) : (
-    <div className="flex h-full items-center justify-center text-5xl">
-      {wine.image_emoji || "🍷"}
-    </div>
-  )}
-</div>
+      {!loading && wines.length > 0 && (
+        <section className="space-y-4">
+          {wines.map((wine) => {
+            const validImageUrl =
+              typeof wine.image_url === "string" &&
+              (wine.image_url.startsWith("/") ||
+                wine.image_url.startsWith("https://"));
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                    {wine.category_label}
-                  </span>
+            return (
+              <article
+                key={wine.id}
+                className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm"
+              >
+                <Link
+                  href={`/wine/${wine.id}`}
+                  className="flex gap-4"
+                >
+                  <div className="relative h-40 w-28 shrink-0 overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
+                    {validImageUrl ? (
+                      <Image
+                        src={wine.image_url as string}
+                        alt={wine.name}
+                        fill
+                        sizes="112px"
+                        className="object-contain scale-125 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-5xl">
+                        {wine.image_emoji || "🍷"}
+                      </div>
+                    )}
+                  </div>
 
-                  <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-bold text-yellow-700">
-                    {wine.price_label}
-                  </span>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+                        {wine.category_label}
+                      </span>
 
-                <h2 className="mt-2 text-lg font-bold">
-                  {wine.name}
-                </h2>
+                      <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-bold text-yellow-700">
+                        {wine.price_label}
+                      </span>
+                    </div>
 
-                <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                  {wine.description || "説明は準備中です。"}
-                </p>
+                    <h2 className="mt-2 text-lg font-bold text-gray-900">
+                      {wine.name}
+                    </h2>
 
-                <p className="mt-2 text-xs text-red-700">
-                  初心者向け{" "}
-                  {"★".repeat(wine.beginner_score)}
-                  {"☆".repeat(
-                    Math.max(0, 5 - wine.beginner_score)
-                  )}
-                </p>
+                    <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-gray-500">
+                      {wine.description || "説明は準備中です。"}
+                    </p>
 
-                <p className="mt-1 text-sm font-bold text-gray-800">
-                  ¥{wine.price.toLocaleString()}
-                </p>
+                    <p className="mt-2 text-xs text-red-700">
+                      初心者向け{" "}
+                      {"★".repeat(wine.beginner_score)}
+                      {"☆".repeat(
+                        Math.max(0, 5 - wine.beginner_score)
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-gray-800">
+                      ¥{wine.price.toLocaleString()}
+                    </p>
+
+                    <p className="mt-3 text-xs font-bold text-red-700">
+                      詳細を見る →
+                    </p>
+                  </div>
+                </Link>
 
                 <Link
                   href={`/records?wine=${encodeURIComponent(wine.name)}`}
-                  className="mt-3 block rounded-2xl bg-red-800 py-2 text-center text-sm font-bold text-white"
+                  className="mt-4 block rounded-2xl bg-red-800 py-3 text-center text-sm font-bold text-white transition active:scale-[0.98]"
                 >
                   このワインを記録する
                 </Link>
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
+              </article>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }
