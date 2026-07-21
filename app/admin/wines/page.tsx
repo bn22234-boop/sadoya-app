@@ -83,7 +83,7 @@ export default function AdminWinesPage() {
     if (value === "white") return "白";
     if (value === "rose") return "ロゼ";
     if (value === "sparkling") return "スパークリング";
-    return "その他";
+    if (value === "その他") return "その他";
   }
 
   function getPriceRange(value: number) {
