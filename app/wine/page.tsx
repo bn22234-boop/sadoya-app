@@ -25,6 +25,7 @@ const categories = [
   { value: "white", label: "白" },
   { value: "sparkling", label: "泡" },
   { value: "rose", label: "ロゼ" },
+  { value: "その他", label: "その他"},
 ];
 
 const priceRanges = [
