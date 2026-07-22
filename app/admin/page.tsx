@@ -115,7 +115,7 @@ export default function AdminPage() {
 
       <section className="space-y-3">
         <AdminMenu
-          href="/admin/wines"
+          href="/admin/wine"
           title="ワイン管理"
           description="ワインの追加・編集・非公開設定"
         />
