@@ -6,29 +6,38 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+type WineVariant = {
+  id: string;
+  wine_id: string;
+  volume_ml: number | null;
+  price: number;
+  image_url: string | null;
+  product_url: string | null;
+  is_active: boolean;
+  display_order: number;
+};
+
 type Wine = {
   id: string;
   name: string;
   category: string;
   category_label: string;
-  price: number;
-  price_label: string;
-  volume_ml: number | null;
   beginner_score: number;
   description: string | null;
-  image_url: string | null;
-  product_url: string | null;
   alcohol_percent: number | null;
   taste: string | null;
   aroma: string | null;
   food_pairing: string | null;
   is_active: boolean;
+  wine_variants: WineVariant[];
 };
 
 export default function WineDetailPage() {
   const params = useParams<{ id: string }>();
 
   const [wine, setWine] = useState<Wine | null>(null);
+  const [selectedVariant, setSelectedVariant] =
+    useState<WineVariant | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,22 +53,17 @@ export default function WineDetailPage() {
       .from("wines")
       .select(
         `
-        id,
-        name,
-        category,
-        category_label,
-        price,
-        price_label,
-        volume_ml,
-        beginner_score,
-        description,
-        image_url,
-        product_url,
-        alcohol_percent,
-        taste,
-        aroma,
-        food_pairing,
-        is_active
+        *,
+        wine_variants (
+          id,
+          wine_id,
+          volume_ml,
+          price,
+          image_url,
+          product_url,
+          is_active,
+          display_order
+        )
         `
       )
       .eq("id", id)
@@ -73,11 +77,28 @@ export default function WineDetailPage() {
       );
 
       setWine(null);
+      setSelectedVariant(null);
       setLoading(false);
       return;
     }
 
-    setWine(data);
+    const activeVariants = (
+      (data.wine_variants ?? []) as WineVariant[]
+    )
+      .filter((variant) => variant.is_active)
+      .sort(
+        (a, b) =>
+          a.display_order - b.display_order ||
+          (a.volume_ml ?? 0) - (b.volume_ml ?? 0)
+      );
+
+    const normalizedWine: Wine = {
+      ...data,
+      wine_variants: activeVariants,
+    };
+
+    setWine(normalizedWine);
+    setSelectedVariant(activeVariants[0] ?? null);
     setLoading(false);
   }
 
@@ -125,9 +146,9 @@ export default function WineDetailPage() {
   }
 
   const validImageUrl =
-    typeof wine.image_url === "string" &&
-    (wine.image_url.startsWith("/") ||
-      wine.image_url.startsWith("https://"));
+    typeof selectedVariant?.image_url === "string" &&
+    (selectedVariant.image_url.startsWith("/") ||
+      selectedVariant.image_url.startsWith("https://"));
 
   return (
     <main className="min-h-screen space-y-5 bg-[#fffaf6] p-5 pb-28 text-gray-900">
@@ -148,12 +169,16 @@ export default function WineDetailPage() {
         <div className="relative h-80 bg-gradient-to-b from-red-50 to-white">
           {validImageUrl ? (
             <Image
-              src={wine.image_url as string}
-              alt={wine.name}
+              src={selectedVariant?.image_url as string}
+              alt={`${wine.name}${
+                selectedVariant?.volume_ml
+                  ? ` ${selectedVariant.volume_ml}ml`
+                  : ""
+              }`}
               fill
               priority
               sizes="(max-width: 448px) 100vw, 448px"
-              className="object-contain p-6"
+              className="object-contain p-6 transition-all duration-300"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-8xl">
@@ -176,20 +201,53 @@ export default function WineDetailPage() {
               {wine.category_label}
             </span>
 
-            <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-bold text-yellow-700">
-              {wine.price_label}
-            </span>
-
-            {wine.volume_ml && (
+            {selectedVariant?.volume_ml && (
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
-                {wine.volume_ml}ml
+                {selectedVariant.volume_ml}ml
               </span>
             )}
           </div>
 
-          <p className="mt-5 text-2xl font-bold">
-            ¥{wine.price.toLocaleString()}
-          </p>
+          {wine.wine_variants.length > 0 ? (
+            <>
+              <div className="mt-5">
+                <p className="text-sm font-bold text-red-900">
+                  容量を選ぶ
+                </p>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {wine.wine_variants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedVariant(variant)
+                      }
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                        selectedVariant?.id === variant.id
+                          ? "bg-red-900 text-white"
+                          : "bg-red-50 text-red-900"
+                      }`}
+                    >
+                      {variant.volume_ml
+                        ? `${variant.volume_ml}ml`
+                        : "容量未設定"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedVariant && (
+                <p className="mt-5 text-2xl font-bold">
+                  ¥{selectedVariant.price.toLocaleString()}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="mt-5 rounded-2xl bg-yellow-50 p-4 text-sm text-yellow-800">
+              容量・価格情報は準備中です。
+            </div>
+          )}
 
           <div className="mt-4 rounded-2xl bg-red-50 p-4">
             <p className="text-xs font-bold text-red-700">
@@ -257,20 +315,28 @@ export default function WineDetailPage() {
 
       <section className="space-y-3">
         <Link
-          href={`/records?wine=${encodeURIComponent(wine.name)}`}
-          className="block rounded-2xl bg-red-900 py-4 text-center font-bold text-white shadow-lg transition active:scale-[0.98]"
+          href={`/records?wine=${encodeURIComponent(
+            wine.name
+          )}&variant=${encodeURIComponent(
+            selectedVariant?.id ?? ""
+          )}`}
+          className={`block rounded-2xl py-4 text-center font-bold text-white shadow-lg transition active:scale-[0.98] ${
+            selectedVariant
+              ? "bg-red-900"
+              : "pointer-events-none bg-gray-400"
+          }`}
         >
           このワインを記録する
         </Link>
 
-        {wine.product_url && (
+        {selectedVariant?.product_url && (
           <a
-            href={wine.product_url}
+            href={selectedVariant.product_url}
             target="_blank"
             rel="noopener noreferrer"
             className="block rounded-2xl border border-red-200 bg-white py-4 text-center font-bold text-red-900"
           >
-            公式商品ページを見る
+            選択した容量の商品ページを見る
           </a>
         )}
       </section>
