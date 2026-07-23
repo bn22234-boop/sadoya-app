@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+
 import { supabase } from "@/lib/supabase";
 
 type Profile = {
@@ -20,6 +21,16 @@ type SadoyanStage = {
   message: string;
 };
 
+type WineBatch = {
+  id: string;
+  batch_number: number;
+  wine_name: string;
+  status: "brewing" | "completed" | "received";
+  started_at: string;
+  finish_at: string;
+  completed_at: string | null;
+};
+
 const MAX_LEVEL = 20;
 const POINTS_PER_LEVEL = 100;
 const SADOYAN_TYPE = 1;
@@ -28,12 +39,45 @@ export default function CharacterPage() {
   const [profile, setProfile] =
     useState<Profile | null>(null);
 
+  const [wineBatches, setWineBatches] =
+    useState<WineBatch[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
+  const [batchesLoading, setBatchesLoading] =
+    useState(true);
+
+  const [harvesting, setHarvesting] =
+    useState(false);
+
+  const [
+    receivingBatchId,
+    setReceivingBatchId,
+  ] = useState<string | null>(null);
+
+  const [currentTime, setCurrentTime] =
+    useState(Date.now());
+
   useEffect(() => {
-    loadProfile();
+    initializePage();
+
+    const intervalId =
+      window.setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
+
+  async function initializePage() {
+    await Promise.all([
+      loadProfile(),
+      loadWineBatches(),
+    ]);
+  }
 
   async function loadProfile() {
     const userId =
@@ -42,6 +86,7 @@ export default function CharacterPage() {
       );
 
     if (!userId) {
+      setProfile(null);
       setLoading(false);
       return;
     }
@@ -55,12 +100,13 @@ export default function CharacterPage() {
         .eq("id", userId)
         .single();
 
-    if (error) {
+    if (error || !data) {
       console.error(
         "プロフィール取得エラー:",
-        error.message
+        error?.message
       );
 
+      setProfile(null);
       setLoading(false);
       return;
     }
@@ -79,6 +125,271 @@ export default function CharacterPage() {
     setLoading(false);
   }
 
+  async function loadWineBatches() {
+    const userId =
+      localStorage.getItem(
+        "sadoya_user_id"
+      );
+
+    if (!userId) {
+      setWineBatches([]);
+      setBatchesLoading(false);
+      return;
+    }
+
+    setBatchesLoading(true);
+
+    /*
+     * finish_atを過ぎている醸造を
+     * completedへ更新する。
+     */
+    const {
+      error: completionError,
+    } = await supabase.rpc(
+      "complete_finished_batches",
+      {
+        p_profile_id: userId,
+      }
+    );
+
+    if (completionError) {
+      console.error(
+        "醸造完了更新エラー:",
+        completionError.message
+      );
+    }
+
+    const { data, error } =
+      await supabase
+        .from("wine_batches")
+        .select(`
+          id,
+          batch_number,
+          wine_name,
+          status,
+          started_at,
+          finish_at,
+          completed_at
+        `)
+        .eq(
+          "profile_id",
+          userId
+        )
+        .in("status", [
+          "brewing",
+          "completed",
+        ])
+        .order("created_at", {
+          ascending: false,
+        });
+
+    if (error) {
+      console.error(
+        "醸造状況取得エラー:",
+        error.message
+      );
+
+      setWineBatches([]);
+      setBatchesLoading(false);
+      return;
+    }
+
+    const normalizedBatches:
+      WineBatch[] =
+      (data ?? []).map(
+        (batch) => ({
+          id: String(batch.id),
+
+          batch_number: Number(
+            batch.batch_number
+          ),
+
+          wine_name: String(
+            batch.wine_name
+          ),
+
+          status:
+            batch.status as
+              | "brewing"
+              | "completed"
+              | "received",
+
+          started_at: String(
+            batch.started_at
+          ),
+
+          finish_at: String(
+            batch.finish_at
+          ),
+
+          completed_at:
+            batch.completed_at !==
+            null
+              ? String(
+                  batch.completed_at
+                )
+              : null,
+        })
+      );
+
+    setWineBatches(
+      normalizedBatches
+    );
+
+    setBatchesLoading(false);
+  }
+
+  async function harvestSadoyan() {
+    if (!profile) {
+      alert(
+        "プロフィールを読み込めませんでした"
+      );
+      return;
+    }
+
+    if (harvesting) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        [
+          "キングサドヤンからブドウを収穫しますか？",
+          "",
+          "収穫後はワインの醸造が始まり、",
+          "新しいサドヤんは種から育成開始となります。",
+        ].join("\n")
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setHarvesting(true);
+
+    try {
+      const { data, error } =
+        await supabase.rpc(
+          "harvest_sadoyan",
+          {
+            p_profile_id:
+              profile.id,
+          }
+        );
+
+      if (error) {
+        console.error(
+          "収穫エラー:",
+          error
+        );
+
+        alert(error.message);
+        return;
+      }
+
+      if (!data) {
+        alert(
+          "収穫処理に失敗しました"
+        );
+        return;
+      }
+
+      alert(
+        [
+          "収穫が完了しました！🍇",
+          "",
+          "ワインの醸造が始まりました。",
+          "新しいサドヤんを種から育てよう🌱",
+        ].join("\n")
+      );
+
+      await Promise.all([
+        loadProfile(),
+        loadWineBatches(),
+      ]);
+    } finally {
+      setHarvesting(false);
+    }
+  }
+
+  async function receiveWine(
+    batch: WineBatch
+  ) {
+    if (!profile) {
+      alert(
+        "ログイン情報を確認できません"
+      );
+      return;
+    }
+
+    if (receivingBatchId) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        [
+          `「${batch.wine_name}」を受け取りますか？`,
+          "",
+          "受け取ったワインは、",
+          "今後作成するワインセラーへ保存されます。",
+        ].join("\n")
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setReceivingBatchId(
+      batch.id
+    );
+
+    try {
+      const { data, error } =
+        await supabase.rpc(
+          "receive_wine_batch",
+          {
+            p_profile_id:
+              profile.id,
+
+            p_batch_id:
+              batch.id,
+          }
+        );
+
+      if (error) {
+        console.error(
+          "ワイン受け取りエラー:",
+          error
+        );
+
+        alert(error.message);
+        return;
+      }
+
+      if (data !== true) {
+        alert(
+          "ワインの受け取りに失敗しました"
+        );
+        return;
+      }
+
+      alert(
+        [
+          "ワインを受け取りました！🍷",
+          "",
+          `${batch.wine_name}が完成ワインとして保存されました。`,
+        ].join("\n")
+      );
+
+      await loadWineBatches();
+    } finally {
+      setReceivingBatchId(
+        null
+      );
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#fffaf6]">
@@ -95,40 +406,74 @@ export default function CharacterPage() {
     );
   }
 
+  if (!profile) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#fffaf6] p-5">
+        <section className="w-full rounded-3xl bg-white p-6 text-center shadow-sm">
+          <div className="text-5xl">
+            🌱
+          </div>
+
+          <h1 className="mt-4 text-xl font-bold text-red-950">
+            サドヤんを読み込めませんでした
+          </h1>
+
+          <p className="mt-2 text-sm text-gray-500">
+            ログイン状態を確認してください。
+          </p>
+
+          <Link
+            href="/"
+            className="mt-5 block rounded-2xl bg-red-800 py-3 font-bold text-white"
+          >
+            ホームへ戻る
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   const points =
-    profile?.points ?? 0;
+    profile.points ?? 0;
 
   const calculatedLevel =
     Math.floor(
-      points / POINTS_PER_LEVEL
+      points /
+        POINTS_PER_LEVEL
     );
 
-  const level = Math.min(
-    calculatedLevel,
-    MAX_LEVEL
-  );
+  const level =
+    Math.min(
+      calculatedLevel,
+      MAX_LEVEL
+    );
 
   const isKing =
     level >= MAX_LEVEL;
 
-  const stage = getSadoyanStage(
-    level,
-    SADOYAN_TYPE
-  );
+  const stage =
+    getSadoyanStage(
+      level,
+      SADOYAN_TYPE
+    );
 
   const currentLevelProgress =
     isKing
       ? 100
-      : points % POINTS_PER_LEVEL;
+      : points %
+        POINTS_PER_LEVEL;
 
   const pointsToNextLevel =
     isKing
       ? 0
-      : POINTS_PER_LEVEL -
-        currentLevelProgress;
+      : currentLevelProgress === 0
+        ? POINTS_PER_LEVEL
+        : POINTS_PER_LEVEL -
+          currentLevelProgress;
 
   const levelsToNextStage =
-    stage.nextStageLevel !== null
+    stage.nextStageLevel !==
+    null
       ? Math.max(
           0,
           stage.nextStageLevel -
@@ -137,7 +482,8 @@ export default function CharacterPage() {
       : 0;
 
   const pointsToNextStage =
-    stage.nextStageLevel !== null
+    stage.nextStageLevel !==
+    null
       ? Math.max(
           0,
           stage.nextStageLevel *
@@ -171,12 +517,10 @@ export default function CharacterPage() {
           サドヤんをキングまで育てよう。
         </p>
 
-        {profile && (
-          <p className="mt-3 text-sm text-white/80">
-            {profile.name}
-            さんのサドヤん
-          </p>
-        )}
+        <p className="mt-3 text-sm text-white/80">
+          {profile.name}
+          さんのサドヤん
+        </p>
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-red-100 bg-gradient-to-b from-red-50 to-orange-50 text-center text-gray-900 shadow-sm">
@@ -186,17 +530,17 @@ export default function CharacterPage() {
           </span>
 
           <div className="mx-auto mt-4 flex h-64 w-64 items-center justify-center overflow-hidden rounded-full bg-white shadow-inner">
-  <div className="flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-full bg-white">
-    <Image
-      src={stage.image}
-      alt={stage.name}
-      width={220}
-      height={220}
-      priority
-      className="h-full w-full object-contain mix-blend-multiply"
-    />
-  </div>
-</div>
+            <div className="flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-full bg-white">
+              <Image
+                src={stage.image}
+                alt={stage.name}
+                width={220}
+                height={220}
+                priority
+                className="h-full w-full object-contain mix-blend-multiply"
+              />
+            </div>
+          </div>
 
           <h2 className="mt-4 text-2xl font-bold text-red-950">
             {stage.name}
@@ -223,7 +567,10 @@ export default function CharacterPage() {
 
           <div className="mt-5">
             <div className="flex items-center justify-between text-xs font-bold text-gray-500">
-              <span>成長度</span>
+              <span>
+                キングまでの成長度
+              </span>
+
               <span>
                 {Math.floor(
                   overallProgress
@@ -236,7 +583,8 @@ export default function CharacterPage() {
               <div
                 className="h-full rounded-full bg-gradient-to-r from-red-700 to-orange-500 transition-all duration-500"
                 style={{
-                  width: `${overallProgress}%`,
+                  width:
+                    `${overallProgress}%`,
                 }}
               />
             </div>
@@ -275,32 +623,240 @@ export default function CharacterPage() {
               )}
             </div>
           ) : (
-            <div className="mt-5 rounded-2xl bg-yellow-50 p-5 shadow-sm">
-              <p className="text-4xl">
+            <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-5 shadow-sm">
+              <p className="text-5xl">
                 👑🍇
               </p>
 
-              <p className="mt-2 text-xl font-bold text-red-950">
+              <p className="mt-3 text-xl font-bold text-red-950">
                 キングサドヤンに
                 成長しました！
               </p>
 
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                立派に育ったサドヤんから、
-                ブドウを収穫できます。
+                立派に育ったサドヤんから
+                ブドウを収穫し、
+                ワイン造りを始められます。
               </p>
 
               <button
                 type="button"
-                disabled
-                className="mt-4 w-full rounded-2xl bg-gray-300 py-4 font-bold text-gray-500"
+                onClick={
+                  harvestSadoyan
+                }
+                disabled={
+                  harvesting
+                }
+                className="mt-5 w-full rounded-2xl bg-red-800 py-4 font-bold text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                🍇 収穫する
-                （次の実装）
+                {harvesting
+                  ? "収穫しています..."
+                  : "🍇 収穫する"}
               </button>
+
+              <p className="mt-3 text-xs leading-5 text-gray-500">
+                収穫後は新しい種から育成が始まります。
+              </p>
             </div>
           )}
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-orange-100 bg-white p-5 text-gray-900 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-orange-700">
+              SADOYA BREWERY
+            </p>
+
+            <h2 className="mt-1 text-lg font-bold text-red-950">
+              ワイン醸造
+            </h2>
+
+            <p className="mt-1 text-sm leading-6 text-gray-500">
+              歴代サドヤんが育てたブドウを醸造しています。
+            </p>
+          </div>
+
+          <div className="relative h-16 w-16 shrink-0">
+            <Image
+              src="/images/brewing/barrel.png"
+              alt="ワイン樽"
+              fill
+              sizes="64px"
+              className="object-contain"
+            />
+          </div>
+        </div>
+
+        {batchesLoading ? (
+          <div className="mt-5 rounded-2xl bg-orange-50 p-5 text-center">
+            <div className="relative mx-auto h-20 w-20 animate-pulse">
+              <Image
+                src="/images/brewing/barrel.png"
+                alt="ワイン樽"
+                fill
+                sizes="80px"
+                className="object-contain"
+              />
+            </div>
+
+            <p className="mt-3 text-sm text-gray-500">
+              醸造状況を確認しています...
+            </p>
+          </div>
+        ) : wineBatches.length === 0 ? (
+          <div className="mt-5 rounded-2xl bg-orange-50 p-5 text-center">
+            <div className="relative mx-auto h-24 w-24">
+              <Image
+                src="/images/brewing/barrel.png"
+                alt="空のワイン樽"
+                fill
+                sizes="96px"
+                className="object-contain opacity-50"
+              />
+            </div>
+
+            <p className="mt-3 font-bold text-red-950">
+              まだ醸造中のワインはありません
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              サドヤんをキングまで育てて、
+              ブドウを収穫しよう。
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            {wineBatches.map(
+              (batch) => {
+                const brewingInfo =
+                  getBrewingInfo(
+                    batch,
+                    currentTime
+                  );
+
+                const completed =
+                  batch.status ===
+                  "completed";
+
+                return (
+                  <article
+                    key={batch.id}
+                    className={`overflow-hidden rounded-3xl border ${
+                      completed
+                        ? "border-yellow-200 bg-yellow-50"
+                        : "border-orange-100 bg-orange-50"
+                    }`}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="relative h-24 w-24 shrink-0">
+                          <Image
+                            src={
+                              completed
+                                ? "/images/brewing/wine-bottle.png"
+                                : "/images/brewing/barrel.png"
+                            }
+                            alt={
+                              completed
+                                ? "完成したワイン"
+                                : "醸造中のワイン樽"
+                            }
+                            fill
+                            sizes="96px"
+                            className="object-contain"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-orange-700">
+                            No.
+                            {
+                              batch.batch_number
+                            }
+                          </p>
+
+                          <h3 className="mt-1 font-bold text-red-950">
+                            {
+                              batch.wine_name
+                            }
+                          </h3>
+
+                          <p className="mt-2 text-sm font-bold text-orange-700">
+                            {
+                              brewingInfo.stage
+                            }
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            {
+                              brewingInfo.remaining
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {!completed && (
+                        <div className="mt-4">
+                          <div className="h-3 overflow-hidden rounded-full bg-orange-100">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-700 transition-all duration-500"
+                              style={{
+                                width:
+                                  `${brewingInfo.progress}%`,
+                              }}
+                            />
+                          </div>
+
+                          <p className="mt-2 text-right text-xs font-bold text-orange-700">
+                            {
+                              brewingInfo.progress
+                            }
+                            %
+                          </p>
+                        </div>
+                      )}
+
+                      {completed && (
+                        <>
+                          <div className="mt-4 rounded-2xl bg-white p-3 text-center">
+                            <p className="text-sm font-bold text-red-950">
+                              ワインが完成しました！
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-500">
+                              受け取ると完成ワインとして保存されます。
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              receiveWine(
+                                batch
+                              )
+                            }
+                            disabled={
+                              receivingBatchId ===
+                              batch.id
+                            }
+                            className="mt-4 w-full rounded-2xl bg-red-800 py-4 font-bold text-white shadow transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {receivingBatchId ===
+                            batch.id
+                              ? "受け取っています..."
+                              : "🍷 完成したワインを受け取る"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </article>
+                );
+              }
+            )}
+          </div>
+        )}
       </section>
 
       <section className="grid grid-cols-3 gap-3 text-center">
@@ -337,7 +893,8 @@ export default function CharacterPage() {
         </h2>
 
         <p className="mt-1 text-sm text-gray-500">
-          アプリを使って、サドヤんを育てよう。
+          アプリを使って、
+          サドヤんを育てよう。
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -367,7 +924,9 @@ export default function CharacterPage() {
             icon="🌱"
             name="種"
             range="Lv.0"
-            active={level === 0}
+            active={
+              level === 0
+            }
           />
 
           <StageGuide
@@ -414,7 +973,9 @@ export default function CharacterPage() {
             icon="👑"
             name="キングサドヤン"
             range="Lv.20"
-            active={level >= 20}
+            active={
+              level >= 20
+            }
           />
         </div>
       </section>
@@ -502,6 +1063,139 @@ function StageGuide({
   );
 }
 
+function getBrewingInfo(
+  batch: WineBatch,
+  now: number
+) {
+  if (
+    batch.status ===
+    "completed"
+  ) {
+    return {
+      stage:
+        "ワインが完成しました！",
+      remaining:
+        "受け取りボタンを押してください",
+      progress: 100,
+    };
+  }
+
+  const startedAt =
+    new Date(
+      batch.started_at
+    ).getTime();
+
+  const finishAt =
+    new Date(
+      batch.finish_at
+    ).getTime();
+
+  if (
+    Number.isNaN(startedAt) ||
+    Number.isNaN(finishAt)
+  ) {
+    return {
+      stage:
+        "醸造状況を確認中",
+      remaining:
+        "日時情報を確認できません",
+      progress: 0,
+    };
+  }
+
+  const totalTime =
+    Math.max(
+      finishAt -
+        startedAt,
+      1
+    );
+
+  const elapsedTime =
+    Math.max(
+      now -
+        startedAt,
+      0
+    );
+
+  const ratio =
+    Math.min(
+      elapsedTime /
+        totalTime,
+      1
+    );
+
+  let stage =
+    "発酵が始まりました";
+
+  if (ratio >= 0.85) {
+    stage =
+      "瓶詰めの準備をしています";
+  } else if (
+    ratio >= 0.6
+  ) {
+    stage =
+      "樽の中で熟成しています";
+  } else if (
+    ratio >= 0.3
+  ) {
+    stage =
+      "香りと味わいを育てています";
+  }
+
+  return {
+    stage,
+
+    remaining:
+      formatRemainingTime(
+        finishAt - now
+      ),
+
+    progress:
+      Math.min(
+        100,
+        Math.max(
+          0,
+          Math.floor(
+            ratio * 100
+          )
+        )
+      ),
+  };
+}
+
+function formatRemainingTime(
+  milliseconds: number
+) {
+  if (milliseconds <= 0) {
+    return "まもなく完成します";
+  }
+
+  const totalMinutes =
+    Math.ceil(
+      milliseconds / 60000
+    );
+
+  if (totalMinutes < 60) {
+    return `完成まであと${totalMinutes}分`;
+  }
+
+  const totalHours =
+    Math.ceil(
+      totalMinutes / 60
+    );
+
+  if (totalHours < 24) {
+    return `完成まであと${totalHours}時間`;
+  }
+
+  const totalDays =
+    Math.ceil(
+      totalHours / 24
+    );
+
+  return `完成まであと${totalDays}日`;
+}
+
 function getSadoyanStage(
   level: number,
   type = 1
@@ -521,8 +1215,10 @@ function getSadoyanStage(
 
   if (level <= 4) {
     return {
-      name: "赤ちゃんサドヤン",
-      image: `/images/sadoyan/baby${type}.png`,
+      name:
+        "赤ちゃんサドヤン",
+      image:
+        `/images/sadoyan/baby${type}.png`,
       nextStageName:
         "子供サドヤン",
       nextStageLevel: 5,
@@ -533,8 +1229,10 @@ function getSadoyanStage(
 
   if (level <= 9) {
     return {
-      name: "子供サドヤン",
-      image: `/images/sadoyan/child${type}.png`,
+      name:
+        "子供サドヤン",
+      image:
+        `/images/sadoyan/child${type}.png`,
       nextStageName:
         "青年サドヤン",
       nextStageLevel: 10,
@@ -545,8 +1243,10 @@ function getSadoyanStage(
 
   if (level <= 14) {
     return {
-      name: "青年サドヤン",
-      image: `/images/sadoyan/youth${type}.png`,
+      name:
+        "青年サドヤン",
+      image:
+        `/images/sadoyan/youth${type}.png`,
       nextStageName:
         "大人サドヤン",
       nextStageLevel: 15,
@@ -557,8 +1257,10 @@ function getSadoyanStage(
 
   if (level <= 19) {
     return {
-      name: "大人サドヤン",
-      image: `/images/sadoyan/adult${type}.png`,
+      name:
+        "大人サドヤン",
+      image:
+        `/images/sadoyan/adult${type}.png`,
       nextStageName:
         "キングサドヤン",
       nextStageLevel: 20,
@@ -568,8 +1270,10 @@ function getSadoyanStage(
   }
 
   return {
-    name: "キングサドヤン",
-    image: `/images/sadoyan/king${type}.png`,
+    name:
+      "キングサドヤン",
+    image:
+      `/images/sadoyan/king${type}.png`,
     nextStageName: null,
     nextStageLevel: null,
     message:
