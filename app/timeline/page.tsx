@@ -16,7 +16,7 @@ type TimelinePost = {
   created_at: string;
   profiles: {
     name: string;
-  } | null;
+  }[];
 };
 
 export default function TimelinePage() {
@@ -56,7 +56,35 @@ export default function TimelinePage() {
       return;
     }
 
-    setPosts((data ?? []) as TimelinePost[]);
+    const normalizedPosts: TimelinePost[] = (data ?? []).map(
+      (post) => ({
+        id: String(post.id),
+        user_id: String(post.user_id),
+        wine_id:
+          post.wine_id !== null
+            ? String(post.wine_id)
+            : null,
+        wine_name: String(post.wine_name),
+        rating: Number(post.rating),
+        comment:
+          post.comment !== null
+            ? String(post.comment)
+            : null,
+        image_url:
+          post.image_url !== null
+            ? String(post.image_url)
+            : null,
+        is_public: Boolean(post.is_public),
+        created_at: String(post.created_at),
+        profiles: Array.isArray(post.profiles)
+          ? post.profiles.map((profile) => ({
+              name: String(profile.name),
+            }))
+          : [],
+      })
+    );
+
+    setPosts(normalizedPosts);
     setLoading(false);
   }
 
@@ -130,7 +158,7 @@ export default function TimelinePage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-bold text-red-950">
-                    {post.profiles?.name || "ユーザー"}
+                    {post.profiles[0]?.name || "ユーザー"}
                   </p>
 
                   <p className="mt-1 text-xs text-gray-400">
@@ -154,7 +182,9 @@ export default function TimelinePage() {
 
                 <p className="mt-2 text-xl text-yellow-500">
                   {"★".repeat(post.rating)}
-                  {"☆".repeat(Math.max(0, 5 - post.rating))}
+                  {"☆".repeat(
+                    Math.max(0, 5 - post.rating)
+                  )}
                 </p>
               </div>
 
@@ -181,11 +211,17 @@ export default function TimelinePage() {
 }
 
 function formatDate(dateString: string) {
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return "日時不明";
+  }
+
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(dateString));
+  }).format(date);
 }
