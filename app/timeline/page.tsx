@@ -39,9 +39,8 @@ export default function TimelinePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(
-    null
-  );
+  const [openMenuId, setOpenMenuId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     initializePage();
@@ -71,6 +70,7 @@ export default function TimelinePage() {
         "プロフィール取得エラー:",
         error?.message
       );
+
       setCurrentProfile(null);
       return;
     }
@@ -107,7 +107,11 @@ export default function TimelinePage() {
       });
 
     if (error) {
-      console.error("タイムライン取得エラー:", error);
+      console.error(
+        "タイムライン取得エラー:",
+        error
+      );
+
       setPosts([]);
       setLoading(false);
       return;
@@ -165,6 +169,10 @@ export default function TimelinePage() {
       currentProfile.id === post.user_id ||
       currentProfile.role === "admin"
     );
+  }
+
+  function isOwnPost(post: TimelinePost) {
+    return currentProfile?.id === post.user_id;
   }
 
   function startEdit(post: TimelinePost) {
@@ -292,7 +300,11 @@ export default function TimelinePage() {
     );
 
     if (error) {
-      console.error("投稿非公開エラー:", error);
+      console.error(
+        "投稿非公開エラー:",
+        error
+      );
+
       alert(error.message);
       return;
     }
@@ -307,45 +319,107 @@ export default function TimelinePage() {
   }
 
   async function sharePost(post: TimelinePost) {
-    const text = [
-      `🍷 ${post.wine_name}`,
-      `${"★".repeat(post.rating)}${"☆".repeat(
-        Math.max(0, 5 - post.rating)
-      )}`,
-      post.comment ?? "",
-      "SADOYA Wine App",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  if (!isOwnPost(post)) {
+    alert("共有できるのは自分の投稿だけです");
+    return;
+  }
 
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${post.wine_name}のワイン記録`,
-          text,
-          url: window.location.href,
-        });
+  const text = [
+    `🍷 ${post.wine_name}`,
+    `${"★".repeat(post.rating)}${"☆".repeat(
+      Math.max(0, 5 - post.rating)
+    )}`,
+    post.comment ?? "",
+    "SADOYA Wine App",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-        return;
-      }
+  const shareText = `${text}\n${window.location.href}`;
 
-      await navigator.clipboard.writeText(
-        `${text}\n${window.location.href}`
-      );
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: `${post.wine_name}のワイン記録`,
+        text,
+        url: window.location.href,
+      });
 
+      return;
+    }
+
+    const copied = await copyTextSafely(shareText);
+
+    if (copied) {
       alert("共有内容をコピーしました");
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === "AbortError"
-      ) {
-        return;
-      }
+    } else {
+      alert("共有内容のコピーに失敗しました");
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.name === "AbortError"
+    ) {
+      return;
+    }
 
-      console.error("共有エラー:", error);
+    console.error("共有エラー:", error);
+
+    const copied = await copyTextSafely(shareText);
+
+    if (copied) {
+      alert("共有内容をコピーしました");
+    } else {
       alert("共有に失敗しました");
     }
   }
+  async function copyTextSafely(text: string) {
+  try {
+    if (
+      navigator.clipboard &&
+      document.hasFocus()
+    ) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    console.warn(
+      "Clipboard APIでのコピーに失敗:",
+      error
+    );
+  }
+
+  try {
+    const textarea =
+      document.createElement("textarea");
+
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+
+    document.body.appendChild(textarea);
+
+    textarea.focus();
+    textarea.select();
+
+    const copied =
+      document.execCommand("copy");
+
+    document.body.removeChild(textarea);
+
+    return copied;
+  } catch (error) {
+    console.error(
+      "フォールバックコピーに失敗:",
+      error
+    );
+
+    return false;
+  }
+}
+}
 
   return (
     <main className="space-y-5 p-5 pb-28">
@@ -378,12 +452,23 @@ export default function TimelinePage() {
         )}
       </section>
 
-      <Link
-        href="/timeline/new"
-        className="block rounded-2xl bg-red-800 py-4 text-center font-bold text-white shadow"
-      >
-        ＋ 投稿する
-      </Link>
+      <section className="rounded-3xl border border-red-100 bg-white p-4 shadow-sm">
+  <p className="font-bold text-red-950">
+    ワインの記録を共有しよう
+  </p>
+
+  <p className="mt-2 text-sm leading-6 text-gray-500">
+    メモリーでワインを記録するときに
+    「タイムラインにも共有する」を選択してください。
+  </p>
+
+  <Link
+    href="/records"
+    className="mt-4 block rounded-2xl bg-red-800 py-3 text-center text-sm font-bold text-white"
+  >
+    ワインを記録する
+  </Link>
+</section>
 
       {editingPost && (
         <section className="space-y-5 rounded-3xl border border-red-200 bg-white p-5 shadow-lg">
@@ -496,7 +581,9 @@ export default function TimelinePage() {
 
       {!loading && posts.length === 0 && (
         <section className="rounded-3xl bg-white p-6 text-center shadow-sm">
-          <div className="text-6xl">🍷</div>
+          <div className="text-6xl">
+            🍷
+          </div>
 
           <h2 className="mt-4 text-lg font-bold text-red-950">
             まだ投稿がありません
@@ -512,6 +599,7 @@ export default function TimelinePage() {
         <section className="space-y-4">
           {posts.map((post) => {
             const manageable = canManagePost(post);
+            const ownPost = isOwnPost(post);
 
             const validImageUrl =
               typeof post.image_url === "string" &&
@@ -639,25 +727,33 @@ export default function TimelinePage() {
                     </p>
                   )}
 
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => sharePost(post)}
-                      className="rounded-2xl bg-red-50 py-3 text-sm font-bold text-red-800"
-                    >
-                      共有する
-                    </button>
+                  <div
+                    className={`mt-4 grid gap-2 ${
+                      ownPost
+                        ? "grid-cols-2"
+                        : "grid-cols-1"
+                    }`}
+                  >
+                    {ownPost && (
+                      <button
+                        type="button"
+                        onClick={() => sharePost(post)}
+                        className="rounded-2xl bg-red-50 py-3 text-sm font-bold text-red-800 transition hover:bg-red-100 active:scale-[0.98]"
+                      >
+                        📱 SNSで共有
+                      </button>
+                    )}
 
                     {post.wine_id ? (
                       <Link
                         href={`/wine/${post.wine_id}`}
-                        className="rounded-2xl border border-red-200 py-3 text-center text-sm font-bold text-red-800"
+                        className="rounded-2xl border border-red-200 py-3 text-center text-sm font-bold text-red-800 transition hover:bg-red-50 active:scale-[0.98]"
                       >
-                        詳細を見る
+                        🍷 ワイン詳細を見る
                       </Link>
                     ) : (
                       <div className="rounded-2xl bg-gray-50 py-3 text-center text-sm font-bold text-gray-400">
-                        詳細なし
+                        ワイン詳細なし
                       </div>
                     )}
                   </div>
