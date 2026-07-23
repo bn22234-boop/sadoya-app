@@ -1060,6 +1060,16 @@ function LoggedInHome({
         >
           サドヤん育成ルームを見る
         </Link>
+        <Link
+  href="/cellar"
+  className="mt-5 block rounded-2xl border border-red-200 bg-white py-3 text-center text-sm font-bold text-red-800"
+>
+  🍾 ワインセラーを見る
+</Link>
+
+<p className="mt-2 text-center text-xs text-gray-400">
+  受け取ったワインがここに保存されます。
+</p>
       </section>
 
       <section className="rounded-3xl border border-red-100 bg-white p-4 text-gray-900 shadow-sm">

@@ -857,6 +857,16 @@ export default function CharacterPage() {
             )}
           </div>
         )}
+        <Link
+  href="/cellar"
+  className="mt-5 block rounded-2xl border border-red-200 bg-white py-3 text-center text-sm font-bold text-red-800"
+>
+  🍾 ワインセラーを見る
+</Link>
+
+<p className="mt-2 text-center text-xs text-gray-400">
+  受け取ったワインがここに保存されます。
+</p>
       </section>
 
       <section className="grid grid-cols-3 gap-3 text-center">
