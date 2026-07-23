@@ -31,23 +31,23 @@ export default function TimelinePage() {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("timeline_posts")
-      .select(`
-        id,
-        user_id,
-        wine_id,
-        wine_name,
-        rating,
-        comment,
-        image_url,
-        is_public,
-        created_at,
-        profiles (
-          name
-        )
-      `)
-      .eq("is_public", true)
-      .order("created_at", { ascending: false });
+  .from("timeline_posts")
+  .select(`
+    id,
+    user_id,
+    wine_id,
+    wine_name,
+    rating,
+    comment,
+    image_url,
+    is_public,
+    created_at,
+    profiles!timeline_posts_user_id_fkey (
+      name
+    )
+  `)
+  .eq("is_public", true)
+  .order("created_at", { ascending: false });
 
     if (error) {
       console.error("タイムライン取得エラー:", error);
