@@ -51,11 +51,17 @@ export default function TimelinePage() {
   const [posts, setPosts] =
     useState<TimelinePost[]>([]);
 
-  const [currentProfile, setCurrentProfile] =
-    useState<Profile | null>(null);
+  const [
+    currentProfile,
+    setCurrentProfile,
+  ] = useState<Profile | null>(null);
 
-  const [editingPost, setEditingPost] =
-    useState<TimelinePost | null>(null);
+  const [
+    editingPost,
+    setEditingPost,
+  ] = useState<TimelinePost | null>(
+    null
+  );
 
   const [editRating, setEditRating] =
     useState(5);
@@ -63,8 +69,10 @@ export default function TimelinePage() {
   const [editComment, setEditComment] =
     useState("");
 
-  const [editIsPublic, setEditIsPublic] =
-    useState(true);
+  const [
+    editIsPublic,
+    setEditIsPublic,
+  ] = useState(true);
 
   const [loading, setLoading] =
     useState(true);
@@ -75,11 +83,17 @@ export default function TimelinePage() {
   const [openMenuId, setOpenMenuId] =
     useState<string | null>(null);
 
-  const [shareTargetPost, setShareTargetPost] =
-    useState<TimelinePost | null>(null);
+  const [
+    shareTargetPost,
+    setShareTargetPost,
+  ] = useState<TimelinePost | null>(
+    null
+  );
 
-  const [generatingCard, setGeneratingCard] =
-    useState(false);
+  const [
+    generatingCard,
+    setGeneratingCard,
+  ] = useState(false);
 
   const shareCardRef =
     useRef<HTMLDivElement>(null);
@@ -89,25 +103,29 @@ export default function TimelinePage() {
   }, []);
 
   async function initializePage() {
-    await loadCurrentProfile();
-    await loadPosts();
+    await Promise.all([
+      loadCurrentProfile(),
+      loadPosts(),
+    ]);
   }
 
   async function loadCurrentProfile() {
-    const userId = localStorage.getItem(
-      "sadoya_user_id"
-    );
+    const userId =
+      localStorage.getItem(
+        "sadoya_user_id"
+      );
 
     if (!userId) {
       setCurrentProfile(null);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", userId)
-      .single();
+    const { data, error } =
+      await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("id", userId)
+        .single();
 
     if (error || !data) {
       console.error(
@@ -128,38 +146,39 @@ export default function TimelinePage() {
   async function loadPosts() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("timeline_posts")
-      .select(`
-        id,
-        user_id,
-        wine_id,
-        wine_name,
-        rating,
-        comment,
-        image_url,
-        is_public,
-        created_at,
-        edited_at,
+    const { data, error } =
+      await supabase
+        .from("timeline_posts")
+        .select(`
+          id,
+          user_id,
+          wine_id,
+          wine_name,
+          rating,
+          comment,
+          image_url,
+          is_public,
+          created_at,
+          edited_at,
 
-        profiles!timeline_posts_user_id_fkey (
-          name
-        ),
+          profiles!timeline_posts_user_id_fkey (
+            name
+          ),
 
-        wines!timeline_posts_wine_id_fkey (
-          category,
+          wines!timeline_posts_wine_id_fkey (
+            category,
 
-          wine_variants (
-            image_url,
-            is_active,
-            display_order
+            wine_variants (
+              image_url,
+              is_active,
+              display_order
+            )
           )
-        )
-      `)
-      .eq("is_public", true)
-      .order("created_at", {
-        ascending: false,
-      });
+        `)
+        .eq("is_public", true)
+        .order("created_at", {
+          ascending: false,
+        });
 
     if (error) {
       console.error(
@@ -191,7 +210,9 @@ export default function TimelinePage() {
         return {
           id: String(post.id),
 
-          user_id: String(post.user_id),
+          user_id: String(
+            post.user_id
+          ),
 
           wine_id:
             post.wine_id !== null
@@ -202,7 +223,9 @@ export default function TimelinePage() {
             post.wine_name
           ),
 
-          rating: Number(post.rating),
+          rating: Number(
+            post.rating
+          ),
 
           comment:
             post.comment !== null
@@ -224,55 +247,67 @@ export default function TimelinePage() {
 
           edited_at:
             post.edited_at !== null
-              ? String(post.edited_at)
+              ? String(
+                  post.edited_at
+                )
               : null,
 
-          profiles: rawProfiles.map(
-            (profile) => ({
-              name: String(profile.name),
-            })
-          ),
-
-          wines: rawWines.map((wine) => {
-            const rawVariants =
-              Array.isArray(
-                wine.wine_variants
-              )
-                ? wine.wine_variants
-                : wine.wine_variants
-                  ? [wine.wine_variants]
-                  : [];
-
-            return {
-              category:
-                wine.category !== null
-                  ? String(wine.category)
-                  : null,
-
-              wine_variants:
-                rawVariants.map(
-                  (variant) => ({
-                    image_url:
-                      variant.image_url !==
-                      null
-                        ? String(
-                            variant.image_url
-                          )
-                        : null,
-
-                    is_active:
-                      Boolean(
-                        variant.is_active
-                      ),
-
-                    display_order:
-                      Number(
-                        variant.display_order
-                      ),
-                  })
+          profiles:
+            rawProfiles.map(
+              (profile) => ({
+                name: String(
+                  profile.name
                 ),
-            };
-          }),
+              })
+            ),
+
+          wines: rawWines.map(
+            (wine) => {
+              const rawVariants =
+                Array.isArray(
+                  wine.wine_variants
+                )
+                  ? wine.wine_variants
+                  : wine.wine_variants
+                    ? [
+                        wine.wine_variants,
+                      ]
+                    : [];
+
+              return {
+                category:
+                  wine.category !==
+                  null
+                    ? String(
+                        wine.category
+                      )
+                    : null,
+
+                wine_variants:
+                  rawVariants.map(
+                    (variant) => ({
+                      image_url:
+                        variant.image_url !==
+                        null
+                          ? String(
+                              variant.image_url
+                            )
+                          : null,
+
+                      is_active:
+                        Boolean(
+                          variant.is_active
+                        ),
+
+                      display_order:
+                        Number(
+                          variant.display_order
+                        ),
+                    })
+                  ),
+              };
+            }
+          ),
         };
       });
 
@@ -307,24 +342,27 @@ export default function TimelinePage() {
     post: TimelinePost
   ) {
     const variants =
-      post.wines[0]?.wine_variants ??
-      [];
+      post.wines[0]
+        ?.wine_variants ?? [];
 
-    const activeVariants = variants
-      .filter(
-        (variant) =>
-          variant.is_active &&
-          Boolean(variant.image_url)
-      )
-      .sort(
-        (a, b) =>
-          a.display_order -
-          b.display_order
-      );
+    const activeVariants =
+      variants
+        .filter(
+          (variant) =>
+            variant.is_active &&
+            Boolean(
+              variant.image_url
+            )
+        )
+        .sort(
+          (a, b) =>
+            a.display_order -
+            b.display_order
+        );
 
     return (
-      activeVariants[0]?.image_url ??
-      null
+      activeVariants[0]
+        ?.image_url ?? null
     );
   }
 
@@ -332,7 +370,8 @@ export default function TimelinePage() {
     post: TimelinePost
   ) {
     return (
-      post.wines[0]?.category ?? null
+      post.wines[0]?.category ??
+      null
     );
   }
 
@@ -344,7 +383,9 @@ export default function TimelinePage() {
     setEditComment(
       post.comment ?? ""
     );
-    setEditIsPublic(post.is_public);
+    setEditIsPublic(
+      post.is_public
+    );
     setOpenMenuId(null);
 
     window.setTimeout(() => {
@@ -382,7 +423,8 @@ export default function TimelinePage() {
           p_post_id:
             editingPost.id,
 
-          p_rating: editRating,
+          p_rating:
+            editRating,
 
           p_comment:
             editComment.trim() ||
@@ -448,7 +490,8 @@ export default function TimelinePage() {
           p_actor_id:
             currentProfile.id,
 
-          p_post_id: post.id,
+          p_post_id:
+            post.id,
         }
       );
 
@@ -496,13 +539,17 @@ export default function TimelinePage() {
           p_actor_id:
             currentProfile.id,
 
-          p_post_id: post.id,
+          p_post_id:
+            post.id,
 
-          p_rating: post.rating,
+          p_rating:
+            post.rating,
 
-          p_comment: post.comment,
+          p_comment:
+            post.comment,
 
-          p_is_public: false,
+          p_is_public:
+            false,
         }
       );
 
@@ -527,13 +574,59 @@ export default function TimelinePage() {
     await loadPosts();
   }
 
-  /**
-   * 画像読み込みが終わらない場合でも、
-   * 指定時間経過後に必ず処理を進める。
-   */
+  async function preloadImage(
+    url: string | null,
+    timeoutMs = 3500
+  ) {
+    if (!url) {
+      return;
+    }
+
+    const imagePromise =
+      new Promise<void>(
+        (resolve) => {
+          const image =
+            new window.Image();
+
+          image.crossOrigin =
+            "anonymous";
+
+          image.decoding =
+            "sync";
+
+          image.onload = () =>
+            resolve();
+
+          image.onerror = () =>
+            resolve();
+
+          image.src = url;
+
+          if (image.complete) {
+            resolve();
+          }
+        }
+      );
+
+    const timeoutPromise =
+      new Promise<void>(
+        (resolve) => {
+          window.setTimeout(
+            resolve,
+            timeoutMs
+          );
+        }
+      );
+
+    await Promise.race([
+      imagePromise,
+      timeoutPromise,
+    ]);
+  }
+
   async function waitForCardImages(
     element: HTMLElement,
-    timeoutMs = 3000
+    timeoutMs = 3500
   ) {
     const images = Array.from(
       element.querySelectorAll("img")
@@ -543,8 +636,8 @@ export default function TimelinePage() {
       return;
     }
 
-    const imagePromises = images.map(
-      (image) => {
+    const imagePromises =
+      images.map((image) => {
         if (
           image.complete &&
           image.naturalWidth > 0
@@ -579,55 +672,53 @@ export default function TimelinePage() {
             );
           }
         );
-      }
-    );
-
-    const timeoutPromise =
-      new Promise<void>((resolve) => {
-        window.setTimeout(
-          resolve,
-          timeoutMs
-        );
       });
 
+    const timeoutPromise =
+      new Promise<void>(
+        (resolve) => {
+          window.setTimeout(
+            resolve,
+            timeoutMs
+          );
+        }
+      );
+
     await Promise.race([
-      Promise.all(imagePromises).then(
-        () => undefined
-      ),
+      Promise.all(
+        imagePromises
+      ).then(() => undefined),
       timeoutPromise,
     ]);
   }
 
-  /**
-   * html-to-image自体が停止した場合に備え、
-   * PNG生成にもタイムアウトを設ける。
-   */
   async function generatePngWithTimeout(
     element: HTMLElement,
-    timeoutMs = 10000
+    timeoutMs = 12000
   ) {
-    const pngPromise = toPng(element, {
-      cacheBust: false,
-      pixelRatio: 0.8,
-      backgroundColor: "#f8f1e7",
-
-      /*
-       * Tailwindなどの不要な一部プロパティを
-       * 画像化時に抑えるための指定。
-       */
-      skipFonts: true,
-    });
+    const pngPromise = toPng(
+      element,
+      {
+        cacheBust: false,
+        pixelRatio: 1,
+        backgroundColor:
+          "#f8f1e7",
+        skipFonts: true,
+      }
+    );
 
     const timeoutPromise =
-      new Promise<never>((_, reject) => {
-        window.setTimeout(() => {
-          reject(
-            new Error(
-              "ワインカードの生成に時間がかかりすぎています。もう一度お試しください。"
-            )
-          );
-        }, timeoutMs);
-      });
+      new Promise<never>(
+        (_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error(
+                "カード生成に時間がかかりすぎています。通信環境を確認して、もう一度お試しください。"
+              )
+            );
+          }, timeoutMs);
+        }
+      );
 
     return Promise.race([
       pngPromise,
@@ -650,61 +741,75 @@ export default function TimelinePage() {
     }
 
     setGeneratingCard(true);
-    setShareTargetPost(post);
 
     try {
+      const recordImageUrl =
+        post.image_url;
+
+      const officialImageUrl =
+        getOfficialWineImage(
+          post
+        );
+
       console.log(
-        "1: ワインカード描画開始"
+        "1: 画像プリロード開始"
       );
 
-      /*
-       * ReactによるDOM描画を2フレーム待つ。
-       * 固定ミリ秒待機より速く安定する。
-       */
+      await Promise.all([
+        preloadImage(
+          recordImageUrl
+        ),
+
+        preloadImage(
+          officialImageUrl
+        ),
+      ]);
+
+      console.log(
+        "2: 画像プリロード完了"
+      );
+
+      setShareTargetPost(post);
+
       await new Promise<void>(
         (resolve) => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(
-              () => resolve()
-            );
-          });
+          requestAnimationFrame(
+            () => {
+              requestAnimationFrame(
+                () => resolve()
+              );
+            }
+          );
         }
       );
 
       console.log(
-        "2: カードDOM描画完了"
+        "3: カードDOM描画完了"
       );
 
-      if (!shareCardRef.current) {
+      if (
+        !shareCardRef.current
+      ) {
         throw new Error(
           "ワインカードを準備できませんでした"
         );
       }
 
-      /*
-       * 画像読み込みは最大3秒だけ待つ。
-       */
       await waitForCardImages(
-        shareCardRef.current,
-        3000
+        shareCardRef.current
       );
 
       console.log(
-        "3: カード画像待機完了"
+        "4: カード内画像読込完了"
       );
 
-      /*
-       * PNG生成は最大10秒。
-       * 永遠に「生成中」にならない。
-       */
       const dataUrl =
         await generatePngWithTimeout(
-          shareCardRef.current,
-          10000
+          shareCardRef.current
         );
 
       console.log(
-        "4: PNG生成完了"
+        "5: PNG生成完了"
       );
 
       const response =
@@ -775,14 +880,12 @@ export default function TimelinePage() {
         return;
       }
 
-      /*
-       * PCやファイル共有非対応端末では、
-       * PNGとしてダウンロードする。
-       */
       const downloadLink =
         document.createElement("a");
 
-      downloadLink.href = dataUrl;
+      downloadLink.href =
+        dataUrl;
+
       downloadLink.download =
         filename;
 
@@ -799,7 +902,8 @@ export default function TimelinePage() {
     } catch (error) {
       if (
         error instanceof Error &&
-        error.name === "AbortError"
+        error.name ===
+          "AbortError"
       ) {
         return;
       }
@@ -815,10 +919,6 @@ export default function TimelinePage() {
           : "ワインカードの生成に失敗しました"
       );
     } finally {
-      console.log(
-        "5: カード生成処理終了"
-      );
-
       setGeneratingCard(false);
       setShareTargetPost(null);
     }
@@ -1098,7 +1198,7 @@ export default function TimelinePage() {
                                   post
                                 )
                               }
-                              className="block w-full px-4 py-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-50"
+                              className="block w-full px-4 py-3 text-left text-sm font-bold text-gray-700"
                             >
                               編集
                             </button>
@@ -1112,7 +1212,7 @@ export default function TimelinePage() {
                                     post
                                   )
                                 }
-                                className="block w-full px-4 py-3 text-left text-sm font-bold text-orange-700 hover:bg-orange-50"
+                                className="block w-full px-4 py-3 text-left text-sm font-bold text-orange-700"
                               >
                                 非公開にする
                               </button>
@@ -1125,7 +1225,7 @@ export default function TimelinePage() {
                                   post
                                 )
                               }
-                              className="block w-full px-4 py-3 text-left text-sm font-bold text-red-700 hover:bg-red-50"
+                              className="block w-full px-4 py-3 text-left text-sm font-bold text-red-700"
                             >
                               削除
                             </button>
@@ -1198,7 +1298,7 @@ export default function TimelinePage() {
                           disabled={
                             generatingCard
                           }
-                          className="rounded-2xl bg-red-50 py-3 text-sm font-bold text-red-800 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-2xl bg-red-50 py-3 text-sm font-bold text-red-800 disabled:opacity-50"
                         >
                           {isGeneratingThisCard
                             ? "カード生成中..."
@@ -1209,7 +1309,7 @@ export default function TimelinePage() {
                       {post.wine_id ? (
                         <Link
                           href={`/wine/${post.wine_id}`}
-                          className="rounded-2xl border border-red-200 py-3 text-center text-sm font-bold text-red-800 transition active:scale-[0.98]"
+                          className="rounded-2xl border border-red-200 py-3 text-center text-sm font-bold text-red-800"
                         >
                           🍷 ワイン詳細を見る
                         </Link>
@@ -1228,7 +1328,11 @@ export default function TimelinePage() {
 
       {shareTargetPost && (
         <div
-          className="fixed left-[-20000px] top-0"
+          className="pointer-events-none fixed left-0 top-0"
+          style={{
+            zIndex: -1,
+            opacity: 0.001,
+          }}
           aria-hidden="true"
         >
           <WineShareCard
