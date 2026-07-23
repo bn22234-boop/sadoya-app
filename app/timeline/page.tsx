@@ -148,6 +148,7 @@ export default function TimelinePage() {
 
         wines!timeline_posts_wine_id_fkey (
           category,
+
           wine_variants (
             image_url,
             is_active,
@@ -173,21 +174,19 @@ export default function TimelinePage() {
 
     const normalizedPosts: TimelinePost[] =
       (data ?? []).map((post) => {
-        const rawProfiles = Array.isArray(
-          post.profiles
-        )
-          ? post.profiles
-          : post.profiles
-            ? [post.profiles]
-            : [];
+        const rawProfiles =
+          Array.isArray(post.profiles)
+            ? post.profiles
+            : post.profiles
+              ? [post.profiles]
+              : [];
 
-        const rawWines = Array.isArray(
-          post.wines
-        )
-          ? post.wines
-          : post.wines
-            ? [post.wines]
-            : [];
+        const rawWines =
+          Array.isArray(post.wines)
+            ? post.wines
+            : post.wines
+              ? [post.wines]
+              : [];
 
         return {
           id: String(post.id),
@@ -241,9 +240,7 @@ export default function TimelinePage() {
               )
                 ? wine.wine_variants
                 : wine.wine_variants
-                  ? [
-                      wine.wine_variants,
-                    ]
+                  ? [wine.wine_variants]
                   : [];
 
             return {
@@ -530,39 +527,112 @@ export default function TimelinePage() {
     await loadPosts();
   }
 
+  /**
+   * 画像読み込みが終わらない場合でも、
+   * 指定時間経過後に必ず処理を進める。
+   */
   async function waitForCardImages(
-    element: HTMLElement
+    element: HTMLElement,
+    timeoutMs = 3000
   ) {
     const images = Array.from(
       element.querySelectorAll("img")
     );
 
-    await Promise.all(
-      images.map((image) => {
-        if (image.complete) {
+    if (images.length === 0) {
+      return;
+    }
+
+    const imagePromises = images.map(
+      (image) => {
+        if (
+          image.complete &&
+          image.naturalWidth > 0
+        ) {
           return Promise.resolve();
         }
 
         return new Promise<void>(
           (resolve) => {
-            const finish = () =>
+            const finish = () => {
+              image.removeEventListener(
+                "load",
+                finish
+              );
+
+              image.removeEventListener(
+                "error",
+                finish
+              );
+
               resolve();
+            };
 
             image.addEventListener(
               "load",
-              finish,
-              { once: true }
+              finish
             );
 
             image.addEventListener(
               "error",
-              finish,
-              { once: true }
+              finish
             );
           }
         );
-      })
+      }
     );
+
+    const timeoutPromise =
+      new Promise<void>((resolve) => {
+        window.setTimeout(
+          resolve,
+          timeoutMs
+        );
+      });
+
+    await Promise.race([
+      Promise.all(imagePromises).then(
+        () => undefined
+      ),
+      timeoutPromise,
+    ]);
+  }
+
+  /**
+   * html-to-image自体が停止した場合に備え、
+   * PNG生成にもタイムアウトを設ける。
+   */
+  async function generatePngWithTimeout(
+    element: HTMLElement,
+    timeoutMs = 10000
+  ) {
+    const pngPromise = toPng(element, {
+      cacheBust: false,
+      pixelRatio: 0.8,
+      backgroundColor: "#f8f1e7",
+
+      /*
+       * Tailwindなどの不要な一部プロパティを
+       * 画像化時に抑えるための指定。
+       */
+      skipFonts: true,
+    });
+
+    const timeoutPromise =
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => {
+          reject(
+            new Error(
+              "ワインカードの生成に時間がかかりすぎています。もう一度お試しください。"
+            )
+          );
+        }, timeoutMs);
+      });
+
+    return Promise.race([
+      pngPromise,
+      timeoutPromise,
+    ]);
   }
 
   async function createWineCard(
@@ -583,13 +653,26 @@ export default function TimelinePage() {
     setShareTargetPost(post);
 
     try {
+      console.log(
+        "1: ワインカード描画開始"
+      );
+
+      /*
+       * ReactによるDOM描画を2フレーム待つ。
+       * 固定ミリ秒待機より速く安定する。
+       */
       await new Promise<void>(
         (resolve) => {
-          window.setTimeout(
-            resolve,
-            400
-          );
+          requestAnimationFrame(() => {
+            requestAnimationFrame(
+              () => resolve()
+            );
+          });
         }
+      );
+
+      console.log(
+        "2: カードDOM描画完了"
       );
 
       if (!shareCardRef.current) {
@@ -598,37 +681,34 @@ export default function TimelinePage() {
         );
       }
 
+      /*
+       * 画像読み込みは最大3秒だけ待つ。
+       */
       await waitForCardImages(
-        shareCardRef.current
-      );
-
-      await new Promise<void>(
-        (resolve) => {
-          window.setTimeout(
-            resolve,
-            300
-          );
-        }
-      );
-
-      const dataUrl = await toPng(
         shareCardRef.current,
-        {
-          cacheBust: true,
-          pixelRatio: 1,
-          backgroundColor:
-            "#f8f1e7",
-        }
+        3000
+      );
+
+      console.log(
+        "3: カード画像待機完了"
+      );
+
+      /*
+       * PNG生成は最大10秒。
+       * 永遠に「生成中」にならない。
+       */
+      const dataUrl =
+        await generatePngWithTimeout(
+          shareCardRef.current,
+          10000
+        );
+
+      console.log(
+        "4: PNG生成完了"
       );
 
       const response =
         await fetch(dataUrl);
-
-      if (!response.ok) {
-        throw new Error(
-          "画像データの作成に失敗しました"
-        );
-      }
 
       const blob =
         await response.blob();
@@ -695,6 +775,10 @@ export default function TimelinePage() {
         return;
       }
 
+      /*
+       * PCやファイル共有非対応端末では、
+       * PNGとしてダウンロードする。
+       */
       const downloadLink =
         document.createElement("a");
 
@@ -731,6 +815,10 @@ export default function TimelinePage() {
           : "ワインカードの生成に失敗しました"
       );
     } finally {
+      console.log(
+        "5: カード生成処理終了"
+      );
+
       setGeneratingCard(false);
       setShareTargetPost(null);
     }
